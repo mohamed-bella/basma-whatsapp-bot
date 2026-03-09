@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Basma Bot — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --surface2: #1a2236;
+      --border: #1e2d47;
+      --accent: #10b981;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --blue: #3b82f6;
+      --text: #f0f6ff;
+      --muted: #64748b;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #10b981, #059669);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin: 0 auto 16px;
+      box-shadow: 0 0 32px rgba(16, 185, 129, .3);
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -.5px;
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      width: 100%;
+      max-width: 960px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    .card.blue::before {
+      background: linear-gradient(90deg, transparent, var(--blue), transparent);
+    }
+
+    .card.warn::before {
+      background: linear-gradient(90deg, transparent, var(--warn), transparent);
+    }
+
+    .card-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot.connected {
+      background: var(--accent);
+      animation: pulse-g 2s infinite;
+    }
+
+    .dot.warn {
+      background: var(--warn);
+      animation: pulse-w 1.5s infinite;
+    }
+
+    .dot.error {
+      background: var(--danger);
+    }
+
+    @keyframes pulse-g {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, .25)
+      }
+
+      50% {
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, .1)
+      }
+    }
+
+    @keyframes pulse-w {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, .25)
+      }
+
+      50% {
+        box-shadow: 0 0 0 6px rgba(245, 158, 11, .1)
+      }
+    }
+
+    .status-text {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .meta-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .meta-item:last-child {
+      border-bottom: none;
+    }
+
+    .meta-label {
+      color: var(--muted);
+    }
+
+    .meta-val {
+      font-weight: 500;
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .stat {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .webhook-box {
+      background: var(--surface2);
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 12px;
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--accent);
+      word-break: break-all;
+      line-height: 1.6;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, .1);
+      border: 1px solid rgba(16, 185, 129, .25);
+      border-radius: 50px;
+      padding: 5px 12px;
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .steps ol {
+      padding-left: 20px;
+    }
+
+    .steps li {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .steps li strong {
+      color: var(--text);
+    }
+
+    .refresh-note {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 20px;
+    }
+
+    .blink-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: blink 1.5s infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .2
+      }
+    }
+
+    footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">🤖</div>
+    <h1>Basma <span>Bot</span> Dashboard</h1>
+    <p class="subtitle">Morocco Travel Service · WhatsApp Business Cloud API</p>
+  </header>
+
+  <div class="grid">
+
+    <!-- API Status Card -->
+    <div class="card" id="status-card">
+      <div class="card-title">API Connection</div>
+      <div class="status-row" style="margin-bottom:16px">
+        <div class="dot" id="status-dot"></div>
+        <div class="status-text" id="status-text">Checking...</div>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Phone Number ID</span>
+        <span class="meta-val" id="phone-id">—</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">API Version</span>
+        <span class="meta-val">v22.0</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Engine</span>
+        <span class="meta-val">WhatsApp Cloud API</span>
+      </div>
+    </div>
+
+    <!-- Stats Card -->
+    <div class="card blue">
+      <div class="card-title">📊 Statistics</div>
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-label">Orders</div>
+          <div class="stat-value" id="stat-orders">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Users</div>
+          <div class="stat-value" id="stat-users">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Webhook Config Card -->
+    <div class="card warn">
+      <div class="card-title">🔗 Webhook Setup</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Configure this URL in Meta Developer Console →
+        WhatsApp → Configuration → Webhooks:</p>
+      <div class="webhook-box" id="webhook-url">Loading...</div>
+      <div style="margin-top:12px">
+        <div class="meta-item">
+          <span class="meta-label">Verify Token</span>
+          <span class="meta-val">basma_verify_token_2024</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Subscribe to</span>
+          <span class="meta-val">messages</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Endpoints Card -->
+    <div class="card">
+      <div class="card-title">🌐 API Endpoints</div>
+      <div class="steps">
+        <ol style="padding:0;list-style:none">
+          <li class="meta-item"><span class="meta-label">Health Check</span><span class="meta-val">GET
+              /api/health</span></li>
+          <li class="meta-item"><span class="meta-label">Send Order</span><span class="meta-val">POST
+              /api/send-order-message</span></li>
+          <li class="meta-item"><span class="meta-label">Send Message</span><span class="meta-val">POST
+              /api/send-message</span></li>
+          <li class="meta-item"><span class="meta-label">List Orders</span><span class="meta-val">GET /api/orders</span>
+          </li>
+          <li class="meta-item"><span class="meta-label">Update Status</span><span class="meta-val">PATCH
+              /api/orders/:id/status</span></li>
+          <li class="meta-item" style="border:none"><span class="meta-label">List Users</span><span class="meta-val">GET
+              /api/users</span></li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Token Warning Card -->
+    <div class="card warn" style="grid-column:1/-1">
+      <div class="card-title">⚠️ Important — Token Expiry</div>
+      <div class="steps">
+        <ol>
+          <li>The <strong>test token expires in 24 hours</strong>. For production, generate a permanent <strong>System
+              User token</strong> in Meta Business Manager.</li>
+          <li>Your webhook URL must be <strong>publicly accessible</strong> (HTTPS). Use <strong>ngrok</strong> for
+            local development: <code style="color:var(--accent)">ngrok http 3000</code></li>
+          <li>In Meta Developer Console → WhatsApp → Configuration → set the Callback URL to <code
+              style="color:var(--accent)">[your-ngrok-url]/webhook</code> and Verify Token to <code
+              style="color:var(--accent)">basma_verify_token_2024</code></li>
+          <li>Subscribe to the <strong>messages</strong> webhook field.</li>
+        </ol>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="refresh-note">
+    <div class="blink-dot"></div> Auto-refreshing every 5 seconds
+  </div>
+
+  <footer>
+    <p>Basma Morocco Travel · <a href="/api/health" target="_blank">/api/health</a> · <a
+        href="https://developers.facebook.com" target="_blank">Meta Developers</a></p>
+  </footer>
+
+  <script>
+    document.getElementById("webhook-url").textContent = window.location.origin + "/webhook";
+    document.getElementById("phone-id").textContent = "1079182848608404";
+
+    const API_KEY = "basma_api_secret_2024";
+
+    async function poll() {
+      try {
+        const res = await fetch("/api/status");
+        const data = await res.json();
+        const dot = document.getElementById("status-dot");
+        const txt = document.getElementById("status-text");
+
+        if (data.configured) {
+          dot.className = "dot connected";
+          txt.textContent = "✅ API Connected & Active";
+        } else {
+          dot.className = "dot warn";
+          txt.textContent = "⚠️ Token / Phone ID missing in .env";
+        }
+      } catch {
+        document.getElementById("status-dot").className = "dot error";
+        document.getElementById("status-text").textContent = "❌ Server unreachable";
+      }
+
+      try {
+        const [o, u] = await Promise.all([
+          fetch("/api/orders", { headers: { "x-api-key": API_KEY } }),
+          fetch("/api/users", { headers: { "x-api-key": API_KEY } }),
+        ]);
+        if (o.ok) document.getElementById("stat-orders").textContent = (await o.json()).count ?? "—";
+        if (u.ok) document.getElementById("stat-users").textContent = (await u.json()).count ?? "—";
+      } catch { /* optional */ }
+
+      setTimeout(poll, 5000);
+    }
+    poll();
+  </script>
+</body>
+
+</html>

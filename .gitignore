@@ -1,0 +1,5 @@
+sessions/
+data/store/
+node_modules/
+.env
+*.log
