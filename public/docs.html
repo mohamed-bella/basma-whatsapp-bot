@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Basma WhatsApp Bot — Full API Documentation</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+        rel="stylesheet" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0a0e1a;
+            --surface: #111827;
+            --border: #1e2d47;
+            --accent: #10b981;
+            --blue: #3b82f6;
+            --text: #f0f6ff;
+            --muted: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 40px 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        h1 span {
+            color: var(--accent);
+        }
+
+        h2 {
+            font-size: 22px;
+            margin-top: 40px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .endpoint {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: inline-block;
+            margin-bottom: 16px;
+        }
+
+        .method {
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-right: 8px;
+            font-size: 13px;
+        }
+
+        .method.post {
+            background: rgba(16, 185, 129, .15);
+            color: var(--accent);
+        }
+
+        .method.get {
+            background: rgba(59, 130, 246, .15);
+            color: var(--blue);
+        }
+
+        .method.patch {
+            background: rgba(245, 158, 11, .15);
+            color: #f59e0b;
+        }
+
+        pre {
+            background: #000;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: #c3e88d;
+            border: 1px solid var(--border);
+            margin-top: 12px;
+            margin-bottom: 12px;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: var(--accent);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            font-size: 14px;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 2px solid var(--border);
+            color: var(--muted);
+        }
+
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .req {
+            color: #ef4444;
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .opt {
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <a href="/" class="back-link">← Back to Dashboard</a>
+        <h1>Basma <span>WhatsApp API</span> Documentation</h1>
+        <p style="color: var(--muted); font-size: 16px;">This document explains how to send messages to your clients
+            from any external website, CRM, or script using HTTP Requests.</p>
+
+        <!-- Authentication -->
+        <h2>Authentication</h2>
+        <div class="card">
+            <p>All requests require an API key to ensure only your website/admin script can send messages.</p>
+            <p>Pass your secret key in the HTTP Headers:</p>
+            <pre>x-api-key: basma_api_secret_2024</pre>
+            <p style="font-size: 13px; color: var(--muted); margin-top: 8px;">(You can change this secret inside your
+                .env file)</p>
+        </div>
+
+        <!-- GET Health / QR -->
+        <h2>Check Connection & QR Status</h2>
+        <div class="card">
+            <div class="endpoint"><span class="method get">GET</span>/api/qr</div>
+            <p>Returns the current connection status and a Base64 QR code image if disconnected.</p>
+            <pre>
+Response (Success):
+{
+  "success": true,
+  "status": "connected" // or "disconnected"
+  "qr": null            // or "data:image/png;base64,iVBOR..."
+}
+        </pre>
+        </div>
+
+        <!-- POST Send custom text -->
+        <h2>1. Send Custom Text Message</h2>
+        <div class="card">
+            <div class="endpoint"><span class="method post">POST</span>/api/send-message</div>
+            <p>Sends a standard text message to any WhatsApp number. Great for custom alerts or admin notifications.</p>
+
+            <table>
+                <tr>
+                    <th>Field</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><code>phone</code></td>
+                    <td>String <span class="req">Req</span></td>
+                    <td>Client's full phone number with country code (e.g., "212704969534")</td>
+                </tr>
+                <tr>
+                    <td><code>message</code></td>
+                    <td>String <span class="req">Req</span></td>
+                    <td>The message text. Supports bold (*text*), italic (_text_), and newlines (\n)</td>
+                </tr>
+            </table>
+
+            <pre>
+// JavaScript Example
+fetch("http://localhost:3000/api/send-message", {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "x-api-key": "basma_api_secret_2024" },
+  body: JSON.stringify({
+    phone: "212704969534",
+    message: "👋 Hello Admin! A new user just signed up."
+  })
+});
+        </pre>
+        </div>
+
+        <!-- POST Send Order Confirmation -->
+        <h2>2. Send Order Confirmation</h2>
+        <div class="card">
+            <div class="endpoint"><span class="method post">POST</span>/api/send-order-message</div>
+            <p>Sends a beautifully formatted order receipt directly to the customer and saves the order in the bot's
+                database.</p>
+
+            <table>
+                <tr>
+                    <th>Field</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><code>phone</code></td>
+                    <td>String <span class="req">Req</span></td>
+                    <td>Full phone number (e.g. "212704969534")</td>
+                </tr>
+                <tr>
+                    <td><code>name</code></td>
+                    <td>String <span class="req">Req</span></td>
+                    <td>Customer Name</td>
+                </tr>
+                <tr>
+                    <td><code>order_id</code></td>
+                    <td>String <span class="req">Req</span></td>
+                    <td>Unique Order ID (e.g. "1254")</td>
+                </tr>
+                <tr>
+                    <td><code>product</code></td>
+                    <td>String <span class="req">Req</span></td>
+                    <td>Name of the Tour / Product</td>
+                </tr>
+                <tr>
+                    <td><code>price</code></td>
+                    <td>String <span class="req">Req</span></td>
+                    <td>Price formatted (e.g. "200€")</td>
+                </tr>
+                <tr>
+                    <td><code>date</code></td>
+                    <td>String <span class="opt">Opt</span></td>
+                    <td>Tour date. E.g "12 April 2025"</td>
+                </tr>
+            </table>
+
+            <pre>
+// PHP / WooCommerce Example
+$data = array(
+    'phone' => '212704969534',
+    'name' => 'Ahmed',
+    'order_id' => '1254',
+    'product' => 'Sahara Desert Tour',
+    'price' => '200€'
+);
+
+$ch = curl_init('http://localhost:3000/api/send-order-message');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    'Content-Type: application/json',
+    'x-api-key: basma_api_secret_2024'
+));
+$response = curl_exec($ch);
+curl_close($ch);
+        </pre>
+        </div>
+
+        <!-- PATCH Update Order -->
+        <h2>3. Update Order Status</h2>
+        <div class="card">
+            <div class="endpoint"><span class="method patch">PATCH</span>/api/orders/:order_id/status</div>
+            <p>Updates an order status inside the bot database. Optionally sends a WhatsApp alert to the user notifying
+                them of the change.</p>
+
+            <table>
+                <tr>
+                    <th>Field</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><code>status</code></td>
+                    <td>String <span class="req">Req</span></td>
+                    <td>Must be exactly: "Confirmed", "Pending", "Cancelled", or "Completed"</td>
+                </tr>
+                <tr>
+                    <td><code>notify</code></td>
+                    <td>Boolean <span class="opt">Opt</span></td>
+                    <td>If true, the bot immediately texts the user about this status change.</td>
+                </tr>
+            </table>
+
+            <pre>
+// Node.js Example
+fetch("http://localhost:3000/api/orders/1254/status", {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json", "x-api-key": "basma_api_secret_2024" },
+  body: JSON.stringify({
+    status: "Cancelled",
+    notify: true // Customer will instantly get a "Your order is cancelled" WhatsApp
+  })
+});
+        </pre>
+        </div>
+
+        <!-- GET Lists -->
+        <h2>4. Advanced: Read Database</h2>
+        <div class="card">
+            <p>You can fetch the bot's stored data to display it on an external Admin Dashboard.</p>
+
+            <div class="endpoint"><span class="method get">GET</span>/api/orders</div>
+            <p style="margin-bottom: 15px;">Returns all saved orders.</p>
+
+            <div class="endpoint"><span class="method get">GET</span>/api/users</div>
+            <p>Returns all users who have ever texted the bot, including their last active timestamp.</p>
+        </div>
+
+    </div>
+
+</body>
+
+</html>

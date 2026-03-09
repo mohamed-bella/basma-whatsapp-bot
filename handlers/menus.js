@@ -1,207 +1,140 @@
 /**
- * Menu Functions — Official WhatsApp Cloud API
- * Uses real interactive buttons and list messages (fully supported by Meta API).
+ * Menu Renderer — Pure Text (Baileys compatible)
+ * Beautiful WhatsApp Markdown Menus that work on all devices.
  */
 
-const wa = require("../services/whatsappApi");
-const { FAQ } = require("../data/botData");
+const DIVIDER = "━━━━━━━━━━━━━━━━━━━━━";
+const THIN_DIV = "─────────────────────";
 
-const FOOTER = "Basma Morocco Travel 🌍";
+function mainMenu() {
+    return `🌍 *Basma Morocco Travel*
+_Your trusted Morocco tour guide_
 
-// ── MAIN MENU (List Message — 9 options) ──────────────────────────────────────
-async function mainMenu(to) {
-    return wa.sendList(to, {
-        header: "🌍 Basma Morocco Travel",
-        body: "Welcome! How can I help you today?\nChoose an option below 👇",
-        footer: FOOTER,
-        buttonText: "View Options",
-        sections: [
-            {
-                title: "📋 Our Services",
-                rows: [
-                    { id: "tours", title: "🗺️ Tour Packages", description: "Browse all our Morocco tours" },
-                    { id: "price", title: "💶 Prices & Offers", description: "View pricing for all tours" },
-                    { id: "booking", title: "📅 How to Book", description: "Reservation process explained" },
-                ],
-            },
-            {
-                title: "🔍 My Order",
-                rows: [
-                    { id: "check_order", title: "📦 Check Order", description: "Track your confirmed booking" },
-                ],
-            },
-            {
-                title: "ℹ️ Info & Support",
-                rows: [
-                    { id: "contact", title: "📞 Contact Agent", description: "Talk to our team directly" },
-                    { id: "location", title: "📍 Destinations", description: "Cities & destinations covered" },
-                    { id: "payment", title: "💳 Payment Methods", description: "How to pay for your tour" },
-                    { id: "cancel", title: "🔄 Cancellation", description: "Refund & cancellation policy" },
-                    { id: "visa", title: "🛂 Visa Info", description: "Entry requirements for Morocco" },
-                ],
-            },
-        ],
-    });
+${DIVIDER}
+*What can I help you with?*
+
+1️⃣  🗺️  Tour Packages
+2️⃣  📦  Check Order Status
+3️⃣  💶  Prices & Offers
+4️⃣  📅  How to Book
+5️⃣  📞  Contact Agent
+6️⃣  ℹ️  More Info
+${DIVIDER}
+_Reply with a number (1-6)_`;
 }
 
-// ── GREETING + MAIN MENU ──────────────────────────────────────────────────────
-async function greeting(to, name = "") {
-    const nameStr = name ? `, ${name}` : "";
-    await wa.sendText(to,
-        `👋 *Marhaba${nameStr}! Welcome to Basma Morocco Travel.*\n\n` +
-        `I'm your virtual travel assistant 🌍\n` +
-        `I'll help you find the perfect Morocco tour.`
-    );
-    return mainMenu(to);
+function toursList() {
+    return `🗺️ *Our Morocco Tour Packages*
+
+${THIN_DIV}
+1️⃣  🏜️  *Sahara Desert Tour*
+     3 days · from *200€*
+
+2️⃣  🕌  *Marrakech City Tour*
+     1 day · from *80€*
+
+3️⃣  🏛️  *Fes Cultural Tour*
+     2 days · from *120€*
+
+4️⃣  👨‍👩‍👧‍👦  *Family Morocco Explorer*
+     5 days · from *350€*
+
+5️⃣  💙  *Chefchaouen Blue City*
+     2 days · from *100€*
+${THIN_DIV}
+_Reply with a number for full details_
+_Or type *0* to go back to main menu_`;
 }
 
-// ── TOUR LIST (List Message — 5 tours) ───────────────────────────────────────
-async function toursList(to) {
-    return wa.sendList(to, {
-        header: "🗺️ Morocco Tour Packages",
-        body: "Tap any tour to see full details, pricing and inclusions.",
-        footer: "All prices per person",
-        buttonText: "View Tours",
-        sections: [
-            {
-                title: "🏜️ Available Tours",
-                rows: [
-                    { id: "tour_1", title: "🏜️ Sahara Desert", description: "3 days · 200€ · Camel ride + overnight camp" },
-                    { id: "tour_2", title: "🕌 Marrakech City", description: "1 day · 80€ · Medina, souks & palace" },
-                    { id: "tour_3", title: "🏛️ Fes Cultural", description: "2 days · 120€ · Ancient Medina & tanneries" },
-                    { id: "tour_4", title: "👨‍👩‍👧 Family Explorer", description: "5 days · 350€ · Complete family adventure" },
-                    { id: "tour_5", title: "💙 Chefchaouen", description: "2 days · 100€ · The blue mountain city" },
-                ],
-            },
-        ],
-    });
-}
-
-// ── TOUR DETAILS + BUTTONS ────────────────────────────────────────────────────
 const TOUR_DATA = {
-    tour_1: { emoji: "🏜️", name: "Sahara Desert Tour", price: "200€", duration: "3 days / 2 nights", about: "Ride camels into the Erg Chebbi dunes, sleep in a luxury Berber camp under the stars near Merzouga, and watch the sunrise over the Sahara.", includes: "🚌 Transport · 🏕️ Desert camp · 🍽️ Meals · 🐪 Camel ride · 🧭 Guide" },
-    tour_2: { emoji: "🕌", name: "Marrakech City Tour", price: "80€", duration: "1 full day", about: "Explore Djemaa el-Fna square, vibrant souks, Bahia Palace and Saadian Tombs. Taste authentic Moroccan street food with an expert guide.", includes: "🚶 Guided walk · 🍜 Lunch · 🚌 Transport" },
-    tour_3: { emoji: "🏛️", name: "Fes Cultural Tour", price: "120€", duration: "2 days / 1 night", about: "Discover Fes el-Bali, the world's oldest living medieval city. Visit the leather tanneries, Bou Inania Madrasa and Al-Qarawiyyin University.", includes: "🏨 Hotel · 🍳 Breakfast · 🧭 Expert guide" },
-    tour_4: { emoji: "👨‍👩‍👧", name: "Family Morocco Explorer", price: "350€", duration: "5 days / 4 nights", about: "The ultimate family adventure — Marrakech souks, Atlas Mountains, Sahara Desert, and the magical blue city of Chefchaouen.", includes: "🚌 Transport · 🏨 Hotels · 🍽️ All meals · 🎯 Activities · 🧭 Guide" },
-    tour_5: { emoji: "💙", name: "Chefchaouen Blue City", price: "100€", duration: "2 days / 1 night", about: "Lose yourself in the magical blue-painted streets of Chefchaouen in the Rif Mountains. A photographer's paradise with peaceful mountain air.", includes: "🚌 Transport · 🏨 Boutique hotel · 🍳 Breakfast" },
+    1: { emoji: "🏜️", name: "Sahara Desert Tour", price: "200€", duration: "3 days / 2 nights", about: "Ride camels into the golden dunes, sleep overnight in a luxury Berber camp.", includes: ["🚌 Transport", "🏕️ Desert camp", "🍽️ Meals included", "🐪 Camel ride"] },
+    2: { emoji: "🕌", name: "Marrakech City Tour", price: "80€", duration: "1 full day", about: "Explore the bleeding heart of Morocco — Djemaa el-Fna square, vibrant souks.", includes: ["🚶 Guided walk", "🍜 Lunch", "🚌 Transport"] },
+    3: { emoji: "🏛️", name: "Fes Cultural Tour", price: "120€", duration: "2 days / 1 night", about: "Discover Fes el-Bali, visit leather tanneries and ancient universities.", includes: ["🏨 Hotel overnight", "🍳 Breakfast", "🧭 Guide"] },
+    4: { emoji: "👨‍👩‍👧‍👦", name: "Family Morocco Explorer", price: "350€", duration: "5 days / 4 nights", about: "Ultimate family adventure — Marrakech, Atlas Mountains, Sahara, and Chefchaouen.", includes: ["🚌 All transport", "🏨 Hotels", "🍽️ All meals", "🎯 Family activities"] },
+    5: { emoji: "💙", name: "Chefchaouen Blue City", price: "100€", duration: "2 days / 1 night", about: "Lose yourself in the magical blue-painted streets of Chefchaouen.", includes: ["🚌 Transport", "🏨 Boutique hotel", "🍳 Breakfast"] }
 };
 
-async function tourDetail(to, tourId) {
-    const t = TOUR_DATA[tourId];
-    if (!t) return toursList(to);
+function tourDetail(tourNum) {
+    const t = TOUR_DATA[tourNum];
+    if (!t) return null;
+    const inc = t.includes.map(i => `  ${i}`).join("\n");
+    return `${t.emoji} *${t.name}*
 
-    const body =
-        `${t.emoji} *${t.name}*\n\n` +
-        `⏱️ *Duration:* ${t.duration}\n` +
-        `💶 *Price:* ${t.price} per person\n\n` +
-        `📝 *About:*\n${t.about}\n\n` +
-        `✅ *Included:*\n${t.includes}`;
+⏱️ *Duration:* ${t.duration}
+💶 *Price:* ${t.price} per person
 
-    return wa.sendButtons(to, {
-        header: `${t.emoji} ${t.name}`,
-        body,
-        footer: FOOTER,
-        buttons: [
-            { id: "booking", title: "📅 Book This Tour" },
-            { id: "contact", title: "📞 Ask a Question" },
-            { id: "tours", title: "⬅️ All Tours" },
-        ],
-    });
+📝 *About:*
+${t.about}
+
+✅ *Included:*
+${inc}
+
+${THIN_DIV}
+To book this tour, reply *book*
+For questions, reply *contact*
+To see all tours, reply *tours*
+To go back, type *0*`;
 }
 
-// ── ORDER PROMPT ──────────────────────────────────────────────────────────────
-async function orderPrompt(to) {
-    return wa.sendButtons(to, {
-        header: "📦 Check Order Status",
-        body: "Please send your *order number*.\n\nExample: reply with just the number:\n`1254`",
-        footer: FOOTER,
-        buttons: [
-            { id: "contact", title: "📞 Talk to Agent" },
-            { id: "menu", title: "🏠 Main Menu" },
-        ],
-    });
+function orderPrompt() {
+    return `📦 *Check Order Status*
+
+${THIN_DIV}
+Please send your *order number*.
+
+Example: \`1254\`
+${THIN_DIV}
+_Type *0* to go back_`;
 }
 
-// ── ORDER STATUS ──────────────────────────────────────────────────────────────
-async function orderStatus(to, order) {
-    const statusEmoji = { Confirmed: "✅", Pending: "⏳", Cancelled: "❌", Completed: "🏁" };
-    const emoji = statusEmoji[order.status] || "📋";
+function orderStatus(order) {
+    const emoji = { Confirmed: "✅", Pending: "⏳", Cancelled: "❌", Completed: "🏁" }[order.status] || "📋";
+    return `📦 *Order #${order.order_id}*
 
-    const body =
-        `📦 *Order #${order.order_id}*\n\n` +
-        `${emoji} *Status:* ${order.status}\n` +
-        `🏷️ *Tour:* ${order.product}\n` +
-        `📅 *Date:* ${order.date}\n` +
-        `💶 *Price:* ${order.price}\n` +
-        `👤 *Name:* ${order.name}`;
-
-    return wa.sendButtons(to, {
-        header: `Order #${order.order_id}`,
-        body,
-        footer: "Need help? Tap Contact Agent",
-        buttons: [
-            { id: "contact", title: "📞 Contact Agent" },
-            { id: "tours", title: "🗺️ Browse Tours" },
-            { id: "menu", title: "🏠 Main Menu" },
-        ],
-    });
+${THIN_DIV}
+${emoji} *Status:* ${order.status}
+🏷️ *Tour:* ${order.product}
+📅 *Date:* ${order.date}
+💶 *Price:* ${order.price}
+👤 *Name:* ${order.name}
+${THIN_DIV}
+_Type *contact* to speak with our team_
+_Type *0* for main menu_`;
 }
 
-// ── ORDER NOT FOUND ───────────────────────────────────────────────────────────
-async function orderNotFound(to, orderId) {
-    return wa.sendButtons(to, {
-        header: "❓ Order Not Found",
-        body: `Order *#${orderId}* was not found.\n\nPlease check the number and try again, or contact our team.`,
-        footer: FOOTER,
-        buttons: [
-            { id: "contact", title: "📞 Contact Agent" },
-            { id: "check_order", title: "🔁 Try Again" },
-            { id: "menu", title: "🏠 Main Menu" },
-        ],
-    });
+function moreInfoMenu() {
+    return `ℹ️ *More Information*
+
+${THIN_DIV}
+1️⃣  📍  Destinations we cover
+2️⃣  💳  Payment methods
+3️⃣  🔄  Cancellation policy
+4️⃣  🛂  Visa requirements
+${THIN_DIV}
+_Reply with a number (1-4)_
+_Or type *0* to go back_`;
 }
 
-// ── FAQ + NAV BUTTONS ─────────────────────────────────────────────────────────
-async function faq(to, faqKey) {
-    const text = FAQ[faqKey];
-    if (!text) return mainMenu(to);
+function greeting(name = "") {
+    return `👋 *Marhaba${name ? `, ${name}` : ''}! Welcome to Basma Morocco Travel*
 
-    return wa.sendButtons(to, {
-        body: text,
-        footer: FOOTER,
-        buttons: [
-            { id: "tours", title: "🗺️ See Tours" },
-            { id: "booking", title: "📅 How to Book" },
-            { id: "menu", title: "🏠 Main Menu" },
-        ],
-    });
+I'm your virtual travel assistant 🌍
+I'll help you explore our tours and check your order status.
+
+${mainMenu()}`;
 }
 
-// ── FALLBACK ──────────────────────────────────────────────────────────────────
-async function fallback(to) {
-    return wa.sendButtons(to, {
-        body:
-            "🤔 I didn't understand that.\n\n" +
-            "You can also type keywords:\n" +
-            "*tours* · *price* · *book* · *contact*",
-        footer: FOOTER,
-        buttons: [
-            { id: "tours", title: "🗺️ Tour Packages" },
-            { id: "menu", title: "📋 Main Menu" },
-            { id: "contact", title: "📞 Contact Agent" },
-        ],
-    });
+function fallback() {
+    return `🤔 I didn't understand that.
+
+Quick shortcuts:
+• *menu* — Main menu
+• *tours* — See all tours  
+• *order 1254* — Check order
+• *book* — How to book
+• *contact* — Talk to agent
+
+Or just type a *number* when I show you a menu 👆`;
 }
 
-module.exports = {
-    mainMenu,
-    greeting,
-    toursList,
-    tourDetail,
-    orderPrompt,
-    orderStatus,
-    orderNotFound,
-    faq,
-    fallback,
-    TOUR_DATA,
-};
+module.exports = { mainMenu, toursList, tourDetail, orderPrompt, orderStatus, moreInfoMenu, greeting, fallback, TOUR_DATA };

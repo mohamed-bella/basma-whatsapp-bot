@@ -1,107 +1,152 @@
 /**
- * Message Handler — Simple List Reply
- * Every incoming message triggers a clean interactive list menu.
+ * Message Handler — Stateful Conversation (Baileys compatible)
+ * Pure text approach: Parses text/numbers and routes to state logic.
  */
 
-const wa = require("../services/whatsappApi");
-const { saveUser } = require("../services/storage");
-const { markRead } = require("../services/whatsappApi");
+const { KEYWORDS, FAQ } = require("../data/botData");
+const { getOrder, saveUser } = require("../services/storage");
+const { getSession, setState } = require("../services/session");
+const menus = require("./menus");
 
-// ── The one list we always send ───────────────────────────────────────────────
-async function sendMainList(to) {
-    return wa.sendList(to, {
-        header: "🌍 Basma Morocco Travel",
-        body: "Bonjour! 👋 How can I help you today?\nPlease choose an option below:",
-        footer: "Morocco Travel Service",
-        buttonText: "View Options",
-        sections: [
-            {
-                title: "🗺️ Tours & Prices",
-                rows: [
-                    { id: "tours", title: "🗺️ Tour Packages", description: "Browse all our Morocco tours" },
-                    { id: "price", title: "💶 Prices & Offers", description: "View pricing for all tours" },
-                    { id: "booking", title: "📅 How to Book", description: "Reservation process explained" },
-                ],
-            },
-            {
-                title: "📦 My Order",
-                rows: [
-                    { id: "order", title: "📦 Check Order", description: "Track your confirmed booking" },
-                ],
-            },
-            {
-                title: "📞 Support",
-                rows: [
-                    { id: "contact", title: "📞 Contact Agent", description: "Talk to our team directly" },
-                    { id: "faq", title: "❓ FAQ", description: "Common questions answered" },
-                ],
-            },
-        ],
-    });
+function extractText(msg) {
+    const m = msg.message;
+    return (
+        m?.conversation ||
+        m?.extendedTextMessage?.text ||
+        m?.imageMessage?.caption ||
+        m?.videoMessage?.caption ||
+        ""
+    ).trim();
 }
 
-// ── Handle list/button reply ──────────────────────────────────────────────────
-async function handleAction(to, id) {
-    const responses = {
-        tours: `🗺️ *Our Tours:*\n\n🏜️ Sahara Desert — 3 days · 200€\n🕌 Marrakech City — 1 day · 80€\n🏛️ Fes Cultural — 2 days · 120€\n👨‍👩‍👧 Family Explorer — 5 days · 350€\n💙 Chefchaouen — 2 days · 100€\n\nReply *contact* to book any tour!`,
-        price: `💶 *Prices:*\n\n• Sahara Desert → 200€\n• Marrakech → 80€\n• Fes Cultural → 120€\n• Family Package → 350€\n• Chefchaouen → 100€\n\n_All prices per person. Contact us for group rates._`,
-        booking: `📅 *How to Book:*\n\n1️⃣ Choose your tour\n2️⃣ Tell us your travel dates\n3️⃣ Confirm number of guests\n4️⃣ Pay deposit (30%)\n5️⃣ Receive confirmation ✅\n\nContact us to start: +212 600 000 000`,
-        order: `📦 *Check Order*\n\nPlease send your order number:\n\nExample: \`order 1254\``,
-        contact: `📞 *Contact Us:*\n\n• WhatsApp: +212 600 000 000\n• Email: info@basmatravel.com\n• Hours: 9:00 – 20:00 (GMT+1)\n\nWe reply within 1 hour! 🙏`,
-        faq: `❓ *FAQ:*\n\n*Can I cancel?* Yes, 7+ days = full refund.\n*Visa needed?* Most EU/US citizens don't need one.\n*Group discounts?* Yes! Ask our team.\n*What's included?* Varies by tour — always includes guide.`,
-    };
-
-    const text = responses[id];
-    if (text) {
-        await wa.sendText(to, text);
-    }
-
-    // Always follow up with the list again
-    await sendMainList(to);
+function matchesKeyword(text, keywords) {
+    return keywords.some((kw) => text.toLowerCase().includes(kw));
 }
 
-// ── MAIN ENTRY ────────────────────────────────────────────────────────────────
-async function handleIncomingMessage(message, contact) {
-    const phone = message.from;
-    const name = contact?.profile?.name || "";
+async function send(sock, jid, text) {
+    await sock.sendMessage(jid, { text });
+}
 
-    saveUser(phone, name);
+// ── Global shortcuts ────────────────────────────────────────────────────────
+async function handleGlobalShortcut(sock, jid, phone, text) {
+    const lower = text.toLowerCase();
 
-    try {
-        await markRead(message.id);
-    } catch { /* non-critical */ }
-
-    console.log(`📨  [${phone}] type="${message.type}"`);
-
-    // Button tap
-    if (message.type === "interactive" && message.interactive?.type === "button_reply") {
-        return handleAction(phone, message.interactive.button_reply.id);
+    if (lower === "0" || matchesKeyword(text, KEYWORDS.menu)) {
+        setState(phone, "main_menu");
+        await send(sock, jid, menus.mainMenu());
+        return true;
     }
-
-    // List row tap
-    if (message.type === "interactive" && message.interactive?.type === "list_reply") {
-        return handleAction(phone, message.interactive.list_reply.id);
+    if (matchesKeyword(text, KEYWORDS.greetings)) {
+        setState(phone, "main_menu");
+        await send(sock, jid, menus.greeting());
+        return true;
     }
+    if (matchesKeyword(text, KEYWORDS.tours) || lower === "tours") {
+        setState(phone, "tours");
+        await send(sock, jid, menus.toursList());
+        return true;
+    }
+    if (matchesKeyword(text, KEYWORDS.price)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.price); return true; }
+    if (matchesKeyword(text, KEYWORDS.booking) || lower === "book") { setState(phone, "main_menu"); await send(sock, jid, FAQ.booking); return true; }
+    if (matchesKeyword(text, KEYWORDS.contact)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.contact); return true; }
+    if (matchesKeyword(text, KEYWORDS.location)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.location); return true; }
+    if (matchesKeyword(text, KEYWORDS.payment)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.payment); return true; }
+    if (matchesKeyword(text, KEYWORDS.cancel)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.cancel); return true; }
+    if (matchesKeyword(text, KEYWORDS.visa)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.visa); return true; }
 
-    // Any text message → show the list
-    if (message.type === "text") {
-        const text = (message.text?.body || "").toLowerCase().trim();
-
-        // Quick text shortcuts
-        if (text.includes("order") || text.includes("commande")) {
-            const match = text.match(/\d{3,10}/);
-            if (match) {
-                await wa.sendText(phone, `📦 Looking up order #${match[0]}...\n\nPlease contact our team at +212 600 000 000 to check your order status.`);
-                return sendMainList(phone);
+    // "order 1254"
+    if (matchesKeyword(text, KEYWORDS.order)) {
+        const match = text.match(/(\d{3,10})/);
+        if (match) {
+            const order = getOrder(match[1]);
+            if (order) {
+                setState(phone, "main_menu");
+                await send(sock, jid, menus.orderStatus(order));
+            } else {
+                setState(phone, "awaiting_order");
+                await send(sock, jid, `❓ Order *#${match[1]}* not found.\nCheck the number and try again:`);
             }
+            return true;
         }
-
-        // Everything else → show the list
-        return sendMainList(phone);
+        setState(phone, "awaiting_order");
+        await send(sock, jid, menus.orderPrompt());
+        return true;
     }
+    return false;
+}
 
-    // Any other message type (image, audio, etc.) → show list
-    return sendMainList(phone);
+// ── States ──────────────────────────────────────────────────────────────────
+async function handleMainMenu(sock, jid, phone, text) {
+    switch (text.trim()) {
+        case "1": setState(phone, "tours"); await send(sock, jid, menus.toursList()); break;
+        case "2": setState(phone, "awaiting_order"); await send(sock, jid, menus.orderPrompt()); break;
+        case "3": await send(sock, jid, FAQ.price); break;
+        case "4": await send(sock, jid, FAQ.booking); break;
+        case "5": await send(sock, jid, FAQ.contact); break;
+        case "6": setState(phone, "more_info"); await send(sock, jid, menus.moreInfoMenu()); break;
+        default: await send(sock, jid, menus.mainMenu());
+    }
+}
+
+async function handleTours(sock, jid, phone, text) {
+    const n = parseInt(text.trim());
+    if (n >= 1 && n <= 5) {
+        setState(phone, "tour_detail");
+        await send(sock, jid, menus.tourDetail(n));
+    } else {
+        await send(sock, jid, menus.toursList());
+    }
+}
+
+async function handleAwaitingOrder(sock, jid, phone, text) {
+    const match = text.match(/(\d{3,10})/);
+    if (match) {
+        const order = getOrder(match[1]);
+        if (order) {
+            setState(phone, "main_menu");
+            await send(sock, jid, menus.orderStatus(order));
+        } else {
+            await send(sock, jid, `❓ *Order #${match[1]} not found.*\nDouble check the order number or type *contact*. Type *0* to go back.`);
+        }
+    } else {
+        await send(sock, jid, `📦 Please send your *order number* only.\nExample: \`1254\`\nType *0* to go back.`);
+    }
+}
+
+async function handleMoreInfo(sock, jid, phone, text) {
+    switch (text.trim()) {
+        case "1": await send(sock, jid, FAQ.location); break;
+        case "2": await send(sock, jid, FAQ.payment); break;
+        case "3": await send(sock, jid, FAQ.cancel); break;
+        case "4": await send(sock, jid, FAQ.visa); break;
+        default: await send(sock, jid, menus.moreInfoMenu());
+    }
+}
+
+// ── Entry ───────────────────────────────────────────────────────────────────
+async function handleIncomingMessage(sock, msg) {
+    const jid = msg.key.remoteJid;
+    const phone = jid.replace("@s.whatsapp.net", "").replace("@g.us", "");
+    const text = extractText(msg);
+
+    if (!text) return;
+    saveUser(phone);
+    console.log(`📨  [${phone}] "${text}"`);
+
+    const session = getSession(phone);
+
+    if (await handleGlobalShortcut(sock, jid, phone, text)) return;
+
+    const state = session.state;
+    if (state === "idle") { setState(phone, "main_menu"); return send(sock, jid, menus.greeting()); }
+    if (state === "main_menu") return handleMainMenu(sock, jid, phone, text);
+    if (state === "tours") return handleTours(sock, jid, phone, text);
+    if (state === "tour_detail") { setState(phone, "tours"); return send(sock, jid, menus.toursList()); }
+    if (state === "awaiting_order") return handleAwaitingOrder(sock, jid, phone, text);
+    if (state === "more_info") return handleMoreInfo(sock, jid, phone, text);
+
+    setState(phone, "main_menu");
+    await send(sock, jid, menus.fallback());
 }
 
 module.exports = { handleIncomingMessage };
