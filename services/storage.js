@@ -7,7 +7,13 @@
 const fs = require("fs");
 const path = require("path");
 
-const DATA_DIR = path.join(__dirname, "..", "data", "store");
+const os = require("os");
+
+const isVercel = process.env.VERCEL === "1" || !!process.env.VERCEL;
+const DATA_DIR = isVercel
+    ? path.join(os.tmpdir(), "basma-bot-data")
+    : path.join(__dirname, "..", "data", "store");
+
 const ORDERS_FILE = path.join(DATA_DIR, "orders.json");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 

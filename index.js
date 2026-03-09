@@ -30,8 +30,15 @@ app.use("/api", apiRoutes);
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 app.use((err, req, res, next) => res.status(500).json({ success: false, error: "Internal error." }));
 
+// Add this to export for serverless Vercel
+module.exports = app;
+
+const isVercel = process.env.VERCEL === "1" || !!process.env.VERCEL;
+
 // ── Start server, then open tunnel ───────────────────────────────────────────
 async function main() {
+    if (isVercel) return; // Vercel handles serving app naturally
+
     // 1. Start Express
     await new Promise((resolve) => {
         app.listen(config.server.port, resolve);
