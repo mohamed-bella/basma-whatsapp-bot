@@ -10,7 +10,9 @@ const {
     DisconnectReason,
     fetchLatestBaileysVersion,
     Browsers,
+    makeInMemoryStore
 } = require("@whiskeysockets/baileys");
+const pino = require("pino");
 const fs = require("fs");
 const path = require("path");
 const qrcode_terminal = require("qrcode-terminal");
@@ -36,6 +38,12 @@ async function startBot() {
         fs.mkdirSync(SESSION_DIR, { recursive: true });
     }
 
+    const store = makeInMemoryStore({ logger: pino().child({ level: "silent", stream: "store" }) });
+    store.readFromFile(path.join(SESSION_DIR, "baileys_store.json"));
+    setInterval(() => {
+        store.writeToFile(path.join(SESSION_DIR, "baileys_store.json"));
+    }, 10_000);
+
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
     const { version, isLatest } = await fetchLatestBaileysVersion();
     console.log(`📦 Baileys version: ${version.join(".")} (Latest: ${isLatest})`);
@@ -48,8 +56,16 @@ async function startBot() {
         generateHighQualityLinkPreview: true,
         syncFullHistory: false,
         markOnlineOnConnect: true,
+        getMessage: async (key) => {
+            if (store) {
+                const msg = await store.loadMessage(key.remoteJid, key.id);
+                return msg?.message || undefined;
+            }
+            return { conversation: "" };
+        }
     });
 
+    store.bind(sock.ev);
     activeSocket = sock;
 
     // Listen for connection updates (QR code, connection success/failure)
@@ -97,7 +113,12 @@ async function startBot() {
             if (!msg.message || msg.key.fromMe || msg.key.remoteJid === "status@broadcast") continue;
 
             try {
-                await handleIncomingMessage(sock, msg);
+                if (msg.message.pollUpdateMessage) {
+                    const mappedMsg = await handlePollUpdate(sock, store, msg);
+                    if (mappedMsg) await handleIncomingMessage(sock, mappedMsg);
+                } else {
+                    await handleIncomingMessage(sock, msg);
+                }
             } catch (err) {
                 console.error("❌ Message handling error:", err);
             }
@@ -105,6 +126,39 @@ async function startBot() {
     });
 
     return sock;
+}
+
+// Intercepts and decrypts poll options, changing it back to a standard text message for handlers
+async function handlePollUpdate(sock, store, pollUpdateMsg) {
+    const { getAggregateVotesInPollMessage } = require("@whiskeysockets/baileys");
+
+    const pollCreationMsgKey = pollUpdateMsg.message.pollUpdateMessage.pollCreationMessageKey;
+    const originalMsg = await store.loadMessage(pollCreationMsgKey.remoteJid, pollCreationMsgKey.id);
+
+    if (!originalMsg) {
+        console.log("❌ Original poll message not found in store.");
+        return null;
+    }
+
+    const votes = getAggregateVotesInPollMessage({
+        message: originalMsg.message,
+        pollUpdates: [pollUpdateMsg]
+    });
+
+    const selectedOptions = votes.filter(v => v.voters.length > 0);
+    if (selectedOptions.length > 0) {
+        // Grab the last voted option for single-select simulation
+        const selectedName = selectedOptions[selectedOptions.length - 1].name;
+        console.log(`🗳️ Poll vote extracted: ${selectedName}`);
+
+        return {
+            key: pollUpdateMsg.key,
+            message: {
+                conversation: selectedName
+            }
+        };
+    }
+    return null;
 }
 
 function getSocket() {

@@ -38,11 +38,30 @@ async function handleGlobalShortcut(sock, jid, phone, text) {
         setState(phone, "main_menu");
         await sock.sendMessage(jid, {
             poll: {
-                name: "Example Poll Message",
-                values: ["Option 1", "Option 2", "Option 3"],
+                name: "👋 Welcome! How can we help you today?",
+                values: ["Book a New Tour", "Check Order Status", "Speak to Agent"],
                 selectableCount: 1
             }
         });
+        return true;
+    }
+
+    // Handle Poll Responses
+    if (text === "Book a New Tour") {
+        setState(phone, "tours");
+        await send(sock, jid, menus.toursList ? menus.toursList() : "🌍 Here are our available tours:\n1️⃣ Sahara Desert Tour\n2️⃣ Atlas Mountains\n\nReply with the number to learn more.");
+        return true;
+    }
+
+    if (text === "Check Order Status") {
+        setState(phone, "awaiting_order");
+        await send(sock, jid, menus.orderPrompt ? menus.orderPrompt() : "📦 Please enter your *Order Number* to check the status:");
+        return true;
+    }
+
+    if (text === "Speak to Agent") {
+        setState(phone, "agent");
+        await send(sock, jid, "🧑‍💻 Connecting you to an agent... Please wait a moment.");
         return true;
     }
 
