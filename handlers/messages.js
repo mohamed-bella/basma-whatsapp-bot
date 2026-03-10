@@ -133,20 +133,8 @@ async function handleIncomingMessage(sock, msg) {
     saveUser(phone);
     console.log(`📨  [${phone}] "${text}"`);
 
-    const session = getSession(phone);
-
-    if (await handleGlobalShortcut(sock, jid, phone, text)) return;
-
-    const state = session.state;
-    if (state === "idle") { setState(phone, "main_menu"); return send(sock, jid, menus.greeting()); }
-    if (state === "main_menu") return handleMainMenu(sock, jid, phone, text);
-    if (state === "tours") return handleTours(sock, jid, phone, text);
-    if (state === "tour_detail") { setState(phone, "tours"); return send(sock, jid, menus.toursList()); }
-    if (state === "awaiting_order") return handleAwaitingOrder(sock, jid, phone, text);
-    if (state === "more_info") return handleMoreInfo(sock, jid, phone, text);
-
-    setState(phone, "main_menu");
-    await send(sock, jid, menus.fallback());
+    // Only reply with "hi ;)" as requested
+    await send(sock, jid, "hi ;)");
 }
 
 module.exports = { handleIncomingMessage };
