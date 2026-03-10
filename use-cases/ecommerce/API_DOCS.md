@@ -9,7 +9,7 @@ Use this API to send order confirmations, shipping updates, and support messages
 All API requests require the `x-api-key` header:
 
 ```
-x-api-key: YOUR_API_SECRET
+x-api-key: basma_api_secret_2024
 ```
 
 Set `API_SECRET` in your `.env` file.
@@ -19,7 +19,7 @@ Set `API_SECRET` in your `.env` file.
 ## 📡 Base URL
 
 ```
-http://YOUR_SERVER:3000/api
+http://77.42.43.52:3000/api
 ```
 
 ---
@@ -38,7 +38,7 @@ POST /api/send-order-message
 | Header | Value |
 |--------|-------|
 | `Content-Type` | `application/json` |
-| `x-api-key` | `YOUR_API_SECRET` |
+| `x-api-key` | `basma_api_secret_2024` |
 
 **Body Parameters:**
 | Parameter | Type | Required | Description |
@@ -49,16 +49,19 @@ POST /api/send-order-message
 | `product` | string | ✅ | Product/item name (e.g. `"Nike Air Max 90"`) |
 | `price` | string | ✅ | Total price (e.g. `"499 MAD"`) |
 | `date` | string | ❌ | Order date (auto-filled if omitted) |
+| `image_url` | string | ❌ | URL of an image to send with the confirmation |
+| `contact` | string | ❌ | WhatsApp number to share as a contact card |
+| `contact_name` | string | ❌ | Name for the shared contact card |
 
 **Example — JavaScript (from your checkout page):**
 ```javascript
 // Call this after successful checkout
 async function notifyCustomerViaWhatsApp(order) {
-    const response = await fetch("http://YOUR_SERVER:3000/api/send-order-message", {
+    const response = await fetch("http://77.42.43.52:3000/api/send-order-message", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "x-api-key": "YOUR_API_SECRET"
+            "x-api-key": "basma_api_secret_2024"
         },
         body: JSON.stringify({
             phone: order.customerPhone,    // "212600123456"
@@ -79,8 +82,8 @@ async function notifyCustomerViaWhatsApp(order) {
 **Example — PHP (WooCommerce / Laravel):**
 ```php
 $response = Http::withHeaders([
-    'x-api-key' => 'YOUR_API_SECRET',
-])->post('http://YOUR_SERVER:3000/api/send-order-message', [
+    'x-api-key' => 'basma_api_secret_2024',
+])->post('http://77.42.43.52:3000/api/send-order-message', [
     'phone'    => $order->phone,
     'name'     => $order->customer_name,
     'order_id' => $order->id,
@@ -94,8 +97,8 @@ $response = Http::withHeaders([
 ```python
 import requests
 
-requests.post("http://YOUR_SERVER:3000/api/send-order-message",
-    headers={"x-api-key": "YOUR_API_SECRET"},
+requests.post("http://77.42.43.52:3000/api/send-order-message",
+    headers={"x-api-key": "basma_api_secret_2024"},
     json={
         "phone": "212600123456",
         "name": "Fatima",
@@ -109,9 +112,9 @@ requests.post("http://YOUR_SERVER:3000/api/send-order-message",
 
 **Example — cURL:**
 ```bash
-curl -X POST http://YOUR_SERVER:3000/api/send-order-message \
+curl -X POST http://77.42.43.52:3000/api/send-order-message \
   -H "Content-Type: application/json" \
-  -H "x-api-key: YOUR_API_SECRET" \
+  -H "x-api-key: basma_api_secret_2024" \
   -d '{
     "phone": "212600123456",
     "name": "Fatima",
@@ -153,19 +156,54 @@ POST /api/send-message
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `phone` | string | ✅ | Phone number with country code |
-| `message` | string | ✅ | Message text (supports WhatsApp markdown) |
+| `message` | string | ✅*| Message text (supports WhatsApp markdown) *Required if no image_url/contact |
+| `image_url` | string | ❌ | URL of an image to send. If provided, `message` becomes the image caption. |
+| `contact` | string | ❌ | WhatsApp number to share as a contact card |
+| `contact_name` | string | ❌ | Name for the shared contact card |
 
 **Example — Shipping notification:**
 ```javascript
-fetch("http://YOUR_SERVER:3000/api/send-message", {
+fetch("http://77.42.43.52:3000/api/send-message", {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
-        "x-api-key": "YOUR_API_SECRET"
+        "x-api-key": "basma_api_secret_2024"
     },
     body: JSON.stringify({
         phone: "212600123456",
         message: "🚚 *Shipping Update*\n\nYour order #ORD-5678 has been shipped!\nTracking: ABC123456\n\nEstimated delivery: 2-3 days"
+    })
+});
+```
+
+**Example — Sending an Image:**
+```javascript
+fetch("http://77.42.43.52:3000/api/send-message", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "basma_api_secret_2024"
+    },
+    body: JSON.stringify({
+        phone: "212600123456",
+        message: "Here is your invoice! 🧾",
+        image_url: "https://example.com/invoice-receipt.png"
+    })
+});
+```
+
+**Example — Sending a Contact Card:**
+```javascript
+fetch("http://77.42.43.52:3000/api/send-message", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "basma_api_secret_2024"
+    },
+    body: JSON.stringify({
+        phone: "212600123456",
+        contact: "212611223344",
+        contact_name: "Yassine Support"
     })
 });
 ```
@@ -206,11 +244,11 @@ PATCH /api/orders/:id/status
 
 **Example — Mark as shipped:**
 ```javascript
-fetch("http://YOUR_SERVER:3000/api/orders/ORD-5678/status", {
+fetch("http://77.42.43.52:3000/api/orders/ORD-5678/status", {
     method: "PATCH",
     headers: {
         "Content-Type": "application/json",
-        "x-api-key": "YOUR_API_SECRET"
+        "x-api-key": "basma_api_secret_2024"
     },
     body: JSON.stringify({
         status: "Shipped",
@@ -272,11 +310,11 @@ document.getElementById("checkout-form").addEventListener("submit", async (e) =>
     // 3. Send WhatsApp confirmation:
     const orderId = "ORD-" + Date.now(); // Generate your own order ID
     
-    await fetch("http://YOUR_SERVER:3000/api/send-order-message", {
+    await fetch("http://77.42.43.52:3000/api/send-order-message", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "x-api-key": "YOUR_API_SECRET"
+            "x-api-key": "basma_api_secret_2024"
         },
         body: JSON.stringify({
             phone: form.get("phone"),
@@ -299,10 +337,10 @@ document.getElementById("checkout-form").addEventListener("submit", async (e) =>
 add_action('woocommerce_order_status_completed', function($order_id) {
     $order = wc_get_order($order_id);
     
-    wp_remote_post('http://YOUR_SERVER:3000/api/send-order-message', [
+    wp_remote_post('http://77.42.43.52:3000/api/send-order-message', [
         'headers' => [
             'Content-Type' => 'application/json',
-            'x-api-key'    => 'YOUR_API_SECRET',
+            'x-api-key'    => 'basma_api_secret_2024',
         ],
         'body' => json_encode([
             'phone'    => $order->get_billing_phone(),

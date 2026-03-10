@@ -8,14 +8,14 @@ Copy this folder to create a new use case. This file documents how to interact w
 
 All requests require the `x-api-key` header:
 ```
-x-api-key: YOUR_API_SECRET
+x-api-key: basma_api_secret_2024
 ```
 
 ---
 
 ## 📡 Base URL
 ```
-http://YOUR_SERVER:3000/api
+http://77.42.43.52:3000/api
 ```
 
 ---
@@ -35,6 +35,9 @@ POST /api/send-order-message
 | `product` | string | ✅ | Product/item name |
 | `price` | string | ✅ | Price string |
 | `date` | string | ❌ | Date string |
+| `image_url` | string | ❌ | Image URL |
+| `contact` | string | ❌ | Contact number |
+| `contact_name` | string | ❌ | Contact name |
 
 ### 2. Send Custom Message
 ```
@@ -44,7 +47,10 @@ POST /api/send-message
 | Parameter | Type | Required |
 |-----------|------|----------|
 | `phone` | string | ✅ |
-| `message` | string | ✅ |
+| `message` | string | ✅* |
+| `image_url` | string | ❌ |
+| `contact` | string | ❌ |
+| `contact_name` | string | ❌ |
 
 ### 3. Get Order
 ```

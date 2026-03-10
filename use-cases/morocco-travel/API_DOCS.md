@@ -9,7 +9,7 @@ Use this API to send tour booking confirmations from your website to customers v
 All API requests require the `x-api-key` header:
 
 ```
-x-api-key: YOUR_API_SECRET
+x-api-key: basma_api_secret_2024
 ```
 
 Set `API_SECRET` in your `.env` file.
@@ -19,7 +19,7 @@ Set `API_SECRET` in your `.env` file.
 ## 📡 Base URL
 
 ```
-http://YOUR_SERVER:3000/api
+http://77.42.43.52:3000/api
 ```
 
 ---
@@ -38,7 +38,7 @@ POST /api/send-order-message
 | Header | Value |
 |--------|-------|
 | `Content-Type` | `application/json` |
-| `x-api-key` | `YOUR_API_SECRET` |
+| `x-api-key` | `basma_api_secret_2024` |
 
 **Body Parameters:**
 | Parameter | Type | Required | Description |
@@ -49,14 +49,17 @@ POST /api/send-order-message
 | `product` | string | ✅ | Tour name (e.g. `"Sahara Desert Tour"`) |
 | `price` | string | ✅ | Price with currency (e.g. `"200€"`) |
 | `date` | string | ❌ | Tour date (e.g. `"12 April 2025"`) |
+| `image_url` | string | ❌ | URL of an image to send (e.g., ticket/voucher) |
+| `contact` | string | ❌ | WhatsApp number to share as a contact card |
+| `contact_name` | string | ❌ | Name for the shared contact card |
 
 **Example Request (JavaScript):**
 ```javascript
-fetch("http://YOUR_SERVER:3000/api/send-order-message", {
+fetch("http://77.42.43.52:3000/api/send-order-message", {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
-        "x-api-key": "YOUR_API_SECRET"
+        "x-api-key": "basma_api_secret_2024"
     },
     body: JSON.stringify({
         phone: "212600000000",
@@ -71,9 +74,9 @@ fetch("http://YOUR_SERVER:3000/api/send-order-message", {
 
 **Example Request (cURL):**
 ```bash
-curl -X POST http://YOUR_SERVER:3000/api/send-order-message \
+curl -X POST http://77.42.43.52:3000/api/send-order-message \
   -H "Content-Type: application/json" \
-  -H "x-api-key: YOUR_API_SECRET" \
+  -H "x-api-key: basma_api_secret_2024" \
   -d '{
     "phone": "212600000000",
     "name": "Ahmed",
@@ -115,19 +118,54 @@ POST /api/send-message
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `phone` | string | ✅ | Phone number with country code |
-| `message` | string | ✅ | Message text (supports WhatsApp markdown: `*bold*`, `_italic_`) |
+| `message` | string | ✅*| Message text (supports WhatsApp markdown) *Required if no image_url/contact |
+| `image_url` | string | ❌ | URL of an image to send. If provided, `message` becomes the caption. |
+| `contact` | string | ❌ | WhatsApp number to share as a contact card |
+| `contact_name` | string | ❌ | Name for the shared contact card |
 
 **Example:**
 ```javascript
-fetch("http://YOUR_SERVER:3000/api/send-message", {
+fetch("http://77.42.43.52:3000/api/send-message", {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
-        "x-api-key": "YOUR_API_SECRET"
+        "x-api-key": "basma_api_secret_2024"
     },
     body: JSON.stringify({
         phone: "212600000000",
         message: "Your tour departs tomorrow at 9am! ✅"
+    })
+});
+```
+
+**Example (Sending an Image/Ticket):**
+```javascript
+fetch("http://77.42.43.52:3000/api/send-message", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "basma_api_secret_2024"
+    },
+    body: JSON.stringify({
+        phone: "212600000000",
+        message: "Here is your tour voucher! 🚌",
+        image_url: "https://example.com/voucher.jpg"
+    })
+});
+```
+
+**Example (Sending a Contact):**
+```javascript
+fetch("http://77.42.43.52:3000/api/send-message", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "basma_api_secret_2024"
+    },
+    body: JSON.stringify({
+        phone: "212600000000",
+        contact: "212699887766",
+        contact_name: "Hassan Guide"
     })
 });
 ```
@@ -182,11 +220,11 @@ PATCH /api/orders/:id/status
 
 **Example:**
 ```javascript
-fetch("http://YOUR_SERVER:3000/api/orders/1254/status", {
+fetch("http://77.42.43.52:3000/api/orders/1254/status", {
     method: "PATCH",
     headers: {
         "Content-Type": "application/json",
-        "x-api-key": "YOUR_API_SECRET"
+        "x-api-key": "basma_api_secret_2024"
     },
     body: JSON.stringify({
         status: "Confirmed",

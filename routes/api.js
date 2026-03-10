@@ -53,7 +53,28 @@ router.post("/send-order-message", requireApiKey, async (req, res) => {
     });
 
     try {
-        await sock.sendMessage(jid, { text: body });
+        let messagePayload;
+
+        if (req.body.image_url) {
+            messagePayload = { image: { url: req.body.image_url }, caption: body };
+        } else if (req.body.contact) {
+            const vcard = 'BEGIN:VCARD\n' +
+                'VERSION:3.0\n' +
+                `FN:${req.body.contact_name || req.body.contact}\n` +
+                `TEL;type=CELL;type=VOICE;waid=${req.body.contact.replace(/\D/g, "")}:+${req.body.contact.replace(/\D/g, "")}\n` +
+                'END:VCARD';
+
+            messagePayload = {
+                contacts: {
+                    displayName: req.body.contact_name || req.body.contact,
+                    contacts: [{ vcard }]
+                }
+            };
+        } else {
+            messagePayload = { text: body };
+        }
+
+        await sock.sendMessage(jid, messagePayload);
         res.json({ success: true, message: "Order confirmation sent.", order });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -62,12 +83,34 @@ router.post("/send-order-message", requireApiKey, async (req, res) => {
 
 // ── Send Custom Message ─────────────────────────────────────────────────────
 router.post("/send-message", requireApiKey, async (req, res) => {
-    const { phone, message } = req.body;
+    const { phone, message, image_url, contact, contact_name } = req.body;
     const sock = getSocket();
     if (!sock) return res.status(503).json({ success: false, error: "WhatsApp not connected." });
 
     try {
-        await sock.sendMessage(`${phone.replace(/\D/g, "")}@s.whatsapp.net`, { text: message });
+        const jid = `${phone.replace(/\D/g, "")}@s.whatsapp.net`;
+        let messagePayload;
+
+        if (image_url) {
+            messagePayload = { image: { url: image_url }, caption: message || "" };
+        } else if (contact) {
+            const vcard = 'BEGIN:VCARD\n' +
+                'VERSION:3.0\n' +
+                `FN:${contact_name || contact}\n` +
+                `TEL;type=CELL;type=VOICE;waid=${contact.replace(/\D/g, "")}:+${contact.replace(/\D/g, "")}\n` +
+                'END:VCARD';
+
+            messagePayload = {
+                contacts: {
+                    displayName: contact_name || contact,
+                    contacts: [{ vcard }]
+                }
+            };
+        } else {
+            messagePayload = { text: message };
+        }
+
+        await sock.sendMessage(jid, messagePayload);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
