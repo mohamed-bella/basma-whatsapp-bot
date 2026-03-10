@@ -1,5 +1,6 @@
 /**
- * Basma WhatsApp Bot — Entry Point (Baileys WhatsApp Web version)
+ * WhatsApp Bot — Entry Point (Baileys WhatsApp Web version)
+ * Dynamically loads the use case configured in .env
  */
 
 require("dotenv").config();
@@ -22,9 +23,18 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(express.static(path.join(__dirname, "public")));
 app.use("/api", apiRoutes);
-app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+
+// Simple status page
+app.get("/", (req, res) => {
+    res.json({
+        bot: config.bot.name,
+        useCase: config.useCase.name,
+        status: "running",
+        api: "/api/health",
+    });
+});
+
 app.use((err, req, res, next) => res.status(500).json({ success: false, error: "Internal error." }));
 
 async function main() {
@@ -35,9 +45,10 @@ async function main() {
     });
 
     console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log(`🤖  ${config.bot.name} (Baileys Version)`);
-    console.log(`🚀  Local:     http://localhost:${config.server.port}`);
-    console.log(`🔑  Dashboard: http://localhost:${config.server.port}`);
+    console.log(`🤖  ${config.bot.name}`);
+    console.log(`📦  Use Case: ${config.useCase.name}`);
+    console.log(`🚀  Local:    http://localhost:${config.server.port}`);
+    console.log(`📡  API:      http://localhost:${config.server.port}/api/health`);
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 }
 

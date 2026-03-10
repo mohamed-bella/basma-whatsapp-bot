@@ -1,16 +1,15 @@
 /**
  * REST API Routes — Protected endpoints for website integration
+ * Works with any use case — sends messages using use case templates.
  */
 
 const express = require("express");
 const config = require("../config");
 const { getSocket, getSockStatus, getQRData } = require("../services/whatsapp");
 const { saveOrder, getOrder, getAllOrders, getAllUsers, updateOrderStatus } = require("../services/storage");
+const { sendStatusNotification } = require("../handlers/orders");
 
 const router = express.Router();
-
-// Rate limiting disabled by request
-// router.use(rateLimit({ windowMs: config.rateLimit.windowMs, max: config.rateLimit.max, message: { success: false, error: "Too many requests." } }));
 
 function requireApiKey(req, res, next) {
     const key = req.headers["x-api-key"] || req.query.api_key;
@@ -18,14 +17,23 @@ function requireApiKey(req, res, next) {
     next();
 }
 
+// ── Health Check ────────────────────────────────────────────────────────────
 router.get("/health", (req, res) => {
-    res.json({ success: true, bot: config.bot.name, api: "Baileys WhatsApp Web", status: getSockStatus(), timestamp: new Date().toISOString() });
+    res.json({
+        success: true,
+        bot: config.bot.name,
+        useCase: config.useCase.name,
+        status: getSockStatus(),
+        timestamp: new Date().toISOString(),
+    });
 });
 
+// ── QR Code ─────────────────────────────────────────────────────────────────
 router.get("/qr", (req, res) => {
     res.json({ success: true, status: getSockStatus(), qr: getQRData() });
 });
 
+// ── Send Order Confirmation ─────────────────────────────────────────────────
 router.post("/send-order-message", requireApiKey, async (req, res) => {
     const { phone, name, order_id, product, price, date } = req.body;
     const sock = getSocket();
@@ -35,7 +43,14 @@ router.post("/send-order-message", requireApiKey, async (req, res) => {
     const jid = `${cleanPhone}@s.whatsapp.net`;
     const order = saveOrder({ order_id, phone: cleanPhone, name, product, price, date });
 
-    const body = `✅ *Order Confirmed!*\n\nHello ${name} 👋\n\n📦 *Order ID:* #${order_id}\n🏷️ *Tour:* ${product}\n📅 *Date:* ${date || "To be confirmed"}\n💶 *Price:* ${price}\n\nOur team will contact you within 24 hours.\nQuestions? Reply *contact* anytime. 🌍`;
+    // Use the active use case's order confirmation template
+    const body = config.useCase.messages.orderConfirmation({
+        name,
+        order_id,
+        product,
+        price,
+        date: order.date,
+    });
 
     try {
         await sock.sendMessage(jid, { text: body });
@@ -45,6 +60,7 @@ router.post("/send-order-message", requireApiKey, async (req, res) => {
     }
 });
 
+// ── Send Custom Message ─────────────────────────────────────────────────────
 router.post("/send-message", requireApiKey, async (req, res) => {
     const { phone, message } = req.body;
     const sock = getSocket();
@@ -58,7 +74,11 @@ router.post("/send-message", requireApiKey, async (req, res) => {
     }
 });
 
-router.get("/orders", requireApiKey, (req, res) => { res.json({ success: true, count: getAllOrders().length, orders: getAllOrders() }); });
+// ── Orders ──────────────────────────────────────────────────────────────────
+router.get("/orders", requireApiKey, (req, res) => {
+    res.json({ success: true, count: getAllOrders().length, orders: getAllOrders() });
+});
+
 router.get("/orders/:id", requireApiKey, (req, res) => {
     const order = getOrder(req.params.id);
     order ? res.json({ success: true, order }) : res.status(404).json({ success: false, error: "Order not found." });
@@ -71,12 +91,16 @@ router.patch("/orders/:id/status", requireApiKey, async (req, res) => {
 
     const sock = getSocket();
     if (notify && order.phone && sock) {
-        const msgs = { Confirmed: `✅ Great news! Order #${order.order_id} is *confirmed*.`, Cancelled: `❌ Order #${order.order_id} has been *cancelled*.` };
-        if (msgs[status]) try { await sock.sendMessage(`${order.phone}@s.whatsapp.net`, { text: msgs[status] }); } catch { }
+        try {
+            await sendStatusNotification(sock, order, status);
+        } catch { }
     }
     res.json({ success: true, order });
 });
 
-router.get("/users", requireApiKey, (req, res) => { res.json({ success: true, count: getAllUsers().length, users: getAllUsers() }); });
+// ── Users ───────────────────────────────────────────────────────────────────
+router.get("/users", requireApiKey, (req, res) => {
+    res.json({ success: true, count: getAllUsers().length, users: getAllUsers() });
+});
 
 module.exports = router;

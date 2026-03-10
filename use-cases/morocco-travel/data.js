@@ -1,6 +1,6 @@
 /**
- * FAQ Data & Tour Packages
- * Morocco Travel Service - Basma Bot
+ * Morocco Travel — Use Case Data
+ * Tours, FAQ answers, and keyword triggers.
  */
 
 const TOURS = {
@@ -46,6 +46,14 @@ const TOURS = {
     },
 };
 
+const TOUR_LIST = [
+    { key: 1, emoji: "🏜️", name: "Sahara Desert Tour", price: "200€", duration: "3 days / 2 nights", about: "Ride camels into the golden dunes, sleep overnight in a luxury Berber camp.", includes: ["🚌 Transport", "🏕️ Desert camp", "🍽️ Meals included", "🐪 Camel ride"] },
+    { key: 2, emoji: "🕌", name: "Marrakech City Tour", price: "80€", duration: "1 full day", about: "Explore the bleeding heart of Morocco — Djemaa el-Fna square, vibrant souks.", includes: ["🚶 Guided walk", "🍜 Lunch", "🚌 Transport"] },
+    { key: 3, emoji: "🏛️", name: "Fes Cultural Tour", price: "120€", duration: "2 days / 1 night", about: "Discover Fes el-Bali, visit leather tanneries and ancient universities.", includes: ["🏨 Hotel overnight", "🍳 Breakfast", "🧭 Guide"] },
+    { key: 4, emoji: "👨‍👩‍👧‍👦", name: "Family Morocco Explorer", price: "350€", duration: "5 days / 4 nights", about: "Ultimate family adventure — Marrakech, Atlas Mountains, Sahara, and Chefchaouen.", includes: ["🚌 All transport", "🏨 Hotels", "🍽️ All meals", "🎯 Family activities"] },
+    { key: 5, emoji: "💙", name: "Chefchaouen Blue City", price: "100€", duration: "2 days / 1 night", about: "Lose yourself in the magical blue-painted streets of Chefchaouen.", includes: ["🚌 Transport", "🏨 Boutique hotel", "🍳 Breakfast"] },
+];
+
 const FAQ = {
     price: `💰 *Our Tour Prices*\n\nOur tours start from *80€* per person.\n\n• Sahara Desert Tour → 200€\n• Marrakech City → 80€\n• Fes Cultural → 120€\n• Family Package → 350€\n• Chefchaouen → 100€\n\nType *tours* to see all packages 🗺️`,
     contact: `📞 *Contact Our Team*\n\nYou can reach us:\n\n• WhatsApp: +212 600 000 000\n• Email: info@basmatravel.com\n• Hours: 9:00 – 20:00 (GMT+1)\n\nWe reply within 1 hour! 🙏`,
@@ -70,4 +78,4 @@ const KEYWORDS = {
     order: ["order", "commande", "طلب"],
 };
 
-module.exports = { TOURS, FAQ, KEYWORDS };
+module.exports = { TOURS, TOUR_LIST, FAQ, KEYWORDS };

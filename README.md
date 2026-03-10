@@ -1,153 +1,145 @@
-# 🤖 Basma WhatsApp Bot
+# 🤖 WhatsApp Bot — Multi-Project Framework
 
-**Morocco Travel Service — WhatsApp Automation Bot**
+A scalable WhatsApp bot built with [Baileys](https://github.com/WhiskeySockets/Baileys) + Node.js + Express.js.
 
-Built with [Baileys](https://github.com/WhiskeySockets/Baileys) + Node.js + Express.js
+**One bot, many projects.** Just create a use case folder and you're ready to go.
 
 ---
 
 ## 📁 Project Structure
 
 ```
-BASMA_BOT_WHATSAPP/
+├── index.js                  ← Entry point
+├── config.js                 ← Config (loads USE_CASE from .env)
+├── .env / .env.example       ← Environment variables
 │
-├── index.js                  ← Main entry point
-├── config.js                 ← App configuration (reads .env)
-├── .env.example              ← Environment variable template
-│
-├── data/
-│   ├── botData.js            ← Tour packages, FAQ answers, keywords
-│   └── store/                ← Auto-created: orders.json, users.json
+├── use-cases/
+│   ├── morocco-travel/       ← Travel booking use case
+│   │   ├── index.js          ← Use case config
+│   │   ├── data.js           ← Tours, FAQ, keywords
+│   │   ├── menus.js          ← Menu templates
+│   │   ├── messages.js       ← Message templates
+│   │   └── API_DOCS.md       ← Full API docs for this use case
+│   │
+│   ├── ecommerce/            ← E-commerce / online store use case
+│   │   ├── index.js
+│   │   ├── data.js
+│   │   ├── menus.js
+│   │   ├── messages.js
+│   │   └── API_DOCS.md
+│   │
+│   └── _template/            ← Copy this to create a new use case
+│       ├── index.js
+│       ├── data.js
+│       ├── menus.js
+│       ├── messages.js
+│       └── API_DOCS.md
 │
 ├── handlers/
-│   ├── messages.js           ← WhatsApp message router (keyword → response)
-│   └── orders.js             ← Order confirmation sender
+│   ├── messages.js           ← Generic message router
+│   └── orders.js             ← Order confirmation handler
 │
 ├── services/
-│   ├── whatsapp.js           ← Baileys connection, QR code, reconnect
-│   └── storage.js            ← JSON file-based data storage
+│   ├── whatsapp.js           ← Baileys connection & QR
+│   ├── session.js            ← Conversation state manager
+│   └── storage.js            ← JSON file storage
 │
 ├── routes/
-│   └── api.js                ← Express REST API endpoints
+│   └── api.js                ← REST API endpoints
 │
-└── sessions/                 ← Auto-created: WhatsApp session files
+├── data/store/               ← Auto-created: orders.json, users.json
+└── sessions/                 ← Auto-created: WhatsApp session
 ```
 
 ---
 
 ## ⚡ Quick Start
 
-### 1. Install dependencies
+### 1. Install
 ```bash
 npm install
 ```
 
-### 2. Configure environment
+### 2. Configure
 ```bash
 copy .env.example .env
 ```
-Edit `.env` and set your `API_SECRET` to a strong random string.
+Edit `.env`:
+- Set `USE_CASE` to your use case folder name (e.g. `morocco-travel` or `ecommerce`)
+- Set `API_SECRET` to a strong random string
 
-### 3. Start the bot
+### 3. Start
 ```bash
 npm start
 ```
 
-### 4. Scan QR code
-A QR code will appear in the terminal. Open WhatsApp on your phone:
+### 4. Scan QR
+A QR code appears in the terminal. Scan it with WhatsApp:
 > **Settings → Linked Devices → Link a Device**
 
-Scan the QR code. The bot is now active! ✅
+---
+
+## 🔄 Switching Use Cases
+
+Just change one line in `.env`:
+
+```ini
+# For travel bookings:
+USE_CASE=morocco-travel
+
+# For e-commerce:
+USE_CASE=ecommerce
+```
+
+Then restart the bot.
 
 ---
 
-## 💬 Bot Commands (User-facing)
+## 🆕 Creating a New Use Case
 
-| Input | Response |
-|-------|----------|
-| `hi` / `hello` / `salam` | Welcome greeting + menu |
-| `menu` / `help` | Full options menu |
-| `1` | Tour packages list |
-| `2` | Ask for order number |
-| `3` | Prices |
-| `4` | Contact agent |
-| `5` | How to book |
-| `tours` | All tour packages |
-| `order 1254` | Order status for #1254 |
-| `price` | Pricing information |
-| `book` | Booking instructions |
-| `contact` | Agent contact details |
-| `location` | Destinations covered |
-| `payment` | Payment methods |
-| `cancel` | Cancellation policy |
-| `visa` | Visa requirements |
+1. Copy the template:
+   ```bash
+   cp -r use-cases/_template use-cases/my-project
+   ```
+
+2. Edit the files in `use-cases/my-project/`:
+   - `data.js` — Your keywords and FAQ answers
+   - `menus.js` — Your WhatsApp menu text
+   - `messages.js` — Your notification message templates
+   - `index.js` — Your bot name and config
+   - `API_DOCS.md` — Your API documentation
+
+3. Set in `.env`:
+   ```ini
+   USE_CASE=my-project
+   ```
+
+4. Restart — done! 🎉
 
 ---
 
-## 🌐 REST API
+## 📡 API Documentation
 
-All endpoints require the `x-api-key` header set to your `API_SECRET`.
+Each use case has its own `API_DOCS.md` with full endpoint documentation, parameters, and code examples (JavaScript, PHP, Python, cURL).
 
-### Health Check
-```
-GET http://localhost:3000/api/health
-```
+See:
+- `use-cases/morocco-travel/API_DOCS.md`
+- `use-cases/ecommerce/API_DOCS.md`
 
-### Send Order Confirmation (from your website)
-```
-POST http://localhost:3000/api/send-order-message
-x-api-key: your-secret-key
+### Quick API Summary
 
-{
-  "phone": "212600000000",
-  "name": "Ahmed",
-  "order_id": "1254",
-  "product": "Desert Tour",
-  "price": "200€",
-  "date": "12 April 2025"
-}
-```
+All endpoints use `http://YOUR_SERVER:3000/api` and require `x-api-key` header.
 
-### Send Custom Message
-```
-POST http://localhost:3000/api/send-message
-x-api-key: your-secret-key
-
-{
-  "phone": "212600000000",
-  "message": "Your tour departs tomorrow at 9am. ✅"
-}
-```
-
-### Get Order
-```
-GET http://localhost:3000/api/orders/1254
-x-api-key: your-secret-key
-```
-
-### List All Orders
-```
-GET http://localhost:3000/api/orders
-x-api-key: your-secret-key
-```
-
-### Update Order Status + Notify Customer
-```
-PATCH http://localhost:3000/api/orders/1254/status
-x-api-key: your-secret-key
-
-{
-  "status": "Confirmed",
-  "notify": true
-}
-```
-Valid statuses: `Confirmed`, `Pending`, `Cancelled`, `Completed`
-
-### List All Users
-```
-GET http://localhost:3000/api/users
-x-api-key: your-secret-key
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/health` | Health check (no auth) |
+| `GET` | `/api/qr` | Get QR code for WhatsApp login |
+| `POST` | `/api/send-order-message` | Send order confirmation via WhatsApp |
+| `POST` | `/api/send-message` | Send custom message |
+| `GET` | `/api/orders` | List all orders |
+| `GET` | `/api/orders/:id` | Get single order |
+| `PATCH` | `/api/orders/:id/status` | Update order status + notify |
+| `GET` | `/api/users` | List all users |
 
 ---
 
@@ -155,86 +147,29 @@ x-api-key: your-secret-key
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BOT_NAME` | `Basma Travel Bot` | Bot display name |
+| `USE_CASE` | `morocco-travel` | Which use case folder to load |
+| `BOT_NAME` | _(from use case)_ | Bot display name (override) |
 | `PORT` | `3000` | API server port |
-| `API_SECRET` | `change-me` | Secret key for API authentication |
-| `SESSION_DIR` | `./sessions` | Where WhatsApp session is saved |
+| `API_SECRET` | `change-me` | API authentication key |
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window (ms) |
-| `RATE_LIMIT_MAX` | `10` | Max requests per window |
+| `RATE_LIMIT_MAX` | `30` | Max requests per window |
 
 ---
 
-## 🔄 Reconnection
+## 🔒 Security
 
-If the bot disconnects, it automatically reconnects every 3 seconds.
-
-If it shows `Logged out`, delete the `sessions/` folder and restart:
-```bash
-rm -rf sessions/
-npm start
-```
+- Never commit `.env` to Git
+- Use a strong `API_SECRET` in production
+- Keep `sessions/` folder secure — it contains WhatsApp auth tokens
+- Avoid bulk messaging to prevent WhatsApp bans
 
 ---
 
-## 🚀 Production Deployment
-
-### VPS / Cloud Server (Ubuntu)
+## 🚀 Production
 
 ```bash
-# Install Node.js 18+
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Clone and install
-git clone <your-repo>
-cd BASMA_BOT_WHATSAPP
-npm install --production
-
-# Run with PM2 (process manager)
 npm install -g pm2
-pm2 start index.js --name basma-bot
+pm2 start index.js --name my-bot
 pm2 save
 pm2 startup
 ```
-
-### Docker
-
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install --production
-COPY . .
-CMD ["node", "index.js"]
-```
-
----
-
-## 🔒 Security Notes
-
-- Never commit `.env` to Git (it's in `.gitignore`)
-- Use a strong `API_SECRET` in production
-- Rate limiting is enabled by default
-- Avoid bulk messaging to prevent WhatsApp account bans
-- Keep session files secure — they contain your WhatsApp auth tokens
-
----
-
-## 📊 Data Storage
-
-Orders and users are stored as JSON files in `data/store/`:
-- `data/store/orders.json`
-- `data/store/users.json`
-
-To migrate to MongoDB later, only `services/storage.js` needs to be updated.
-
----
-
-## 🛠️ Customization
-
-To add new keywords or responses, edit `data/botData.js`:
-- `TOURS` — Add/modify tour packages
-- `FAQ` — Edit FAQ answers  
-- `KEYWORDS` — Add trigger words
-
-To add new message routes, edit `handlers/messages.js`.

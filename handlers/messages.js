@@ -1,12 +1,14 @@
 /**
  * Message Handler — Stateful Conversation (Baileys compatible)
- * Pure text approach: Parses text/numbers and routes to state logic.
+ * Dynamically loads keywords, FAQ, and menus from the active use case.
  */
 
-const { KEYWORDS, FAQ } = require("../data/botData");
+const config = require("../config");
 const { getOrder, saveUser } = require("../services/storage");
 const { getSession, setState } = require("../services/session");
-const menus = require("./menus");
+
+// ── Load from active use case ───────────────────────────────────────────
+const { keywords: KEYWORDS, faq: FAQ, menus } = config.useCase;
 
 function extractText(msg) {
     const m = msg.message;
@@ -20,6 +22,7 @@ function extractText(msg) {
 }
 
 function matchesKeyword(text, keywords) {
+    if (!keywords) return false;
     return keywords.some((kw) => text.toLowerCase().includes(kw));
 }
 
@@ -41,18 +44,16 @@ async function handleGlobalShortcut(sock, jid, phone, text) {
         await send(sock, jid, menus.greeting());
         return true;
     }
-    if (matchesKeyword(text, KEYWORDS.tours) || lower === "tours") {
-        setState(phone, "tours");
-        await send(sock, jid, menus.toursList());
-        return true;
+
+    // Dynamic FAQ matching — check all keyword groups against FAQ
+    for (const [topic, words] of Object.entries(KEYWORDS)) {
+        if (["greetings", "menu", "order"].includes(topic)) continue;
+        if (FAQ[topic] && matchesKeyword(text, words)) {
+            setState(phone, "main_menu");
+            await send(sock, jid, FAQ[topic]);
+            return true;
+        }
     }
-    if (matchesKeyword(text, KEYWORDS.price)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.price); return true; }
-    if (matchesKeyword(text, KEYWORDS.booking) || lower === "book") { setState(phone, "main_menu"); await send(sock, jid, FAQ.booking); return true; }
-    if (matchesKeyword(text, KEYWORDS.contact)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.contact); return true; }
-    if (matchesKeyword(text, KEYWORDS.location)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.location); return true; }
-    if (matchesKeyword(text, KEYWORDS.payment)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.payment); return true; }
-    if (matchesKeyword(text, KEYWORDS.cancel)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.cancel); return true; }
-    if (matchesKeyword(text, KEYWORDS.visa)) { setState(phone, "main_menu"); await send(sock, jid, FAQ.visa); return true; }
 
     // "order 1254"
     if (matchesKeyword(text, KEYWORDS.order)) {
@@ -77,24 +78,53 @@ async function handleGlobalShortcut(sock, jid, phone, text) {
 
 // ── States ──────────────────────────────────────────────────────────────────
 async function handleMainMenu(sock, jid, phone, text) {
-    switch (text.trim()) {
-        case "1": setState(phone, "tours"); await send(sock, jid, menus.toursList()); break;
-        case "2": setState(phone, "awaiting_order"); await send(sock, jid, menus.orderPrompt()); break;
-        case "3": await send(sock, jid, FAQ.price); break;
-        case "4": await send(sock, jid, FAQ.booking); break;
-        case "5": await send(sock, jid, FAQ.contact); break;
-        case "6": setState(phone, "more_info"); await send(sock, jid, menus.moreInfoMenu()); break;
-        default: await send(sock, jid, menus.mainMenu());
+    const num = text.trim();
+
+    // Check if the use case has a custom mainMenuHandler
+    if (config.useCase.menus.handleMainMenuChoice) {
+        const handled = await config.useCase.menus.handleMainMenuChoice(sock, jid, phone, num, send, setState, FAQ);
+        if (handled) return;
+    }
+
+    // Default menu handling (works for most use cases)
+    switch (num) {
+        case "1":
+            if (menus.toursList) {
+                setState(phone, "tours");
+                await send(sock, jid, menus.toursList());
+            } else {
+                setState(phone, "awaiting_order");
+                await send(sock, jid, menus.orderPrompt());
+            }
+            break;
+        case "2":
+            setState(phone, "awaiting_order");
+            await send(sock, jid, menus.orderPrompt());
+            break;
+        default:
+            // Try to match FAQ topics by menu number
+            const faqKeys = Object.keys(FAQ);
+            const idx = parseInt(num) - 3; // 3+ maps to FAQ
+            if (idx >= 0 && idx < faqKeys.length) {
+                await send(sock, jid, FAQ[faqKeys[idx]]);
+            } else {
+                await send(sock, jid, menus.mainMenu());
+            }
     }
 }
 
 async function handleTours(sock, jid, phone, text) {
+    if (!menus.tourDetail) {
+        await send(sock, jid, menus.mainMenu());
+        return;
+    }
     const n = parseInt(text.trim());
-    if (n >= 1 && n <= 5) {
+    const detail = menus.tourDetail(n);
+    if (detail) {
         setState(phone, "tour_detail");
-        await send(sock, jid, menus.tourDetail(n));
+        await send(sock, jid, detail);
     } else {
-        await send(sock, jid, menus.toursList());
+        await send(sock, jid, menus.toursList ? menus.toursList() : menus.mainMenu());
     }
 }
 
@@ -109,17 +139,21 @@ async function handleAwaitingOrder(sock, jid, phone, text) {
             await send(sock, jid, `❓ *Order #${match[1]} not found.*\nDouble check the order number or type *contact*. Type *0* to go back.`);
         }
     } else {
-        await send(sock, jid, `📦 Please send your *order number* only.\nExample: \`1254\`\nType *0* to go back.`);
+        await send(sock, jid, `📦 Please send your *order number* only.\nType *0* to go back.`);
     }
 }
 
 async function handleMoreInfo(sock, jid, phone, text) {
-    switch (text.trim()) {
-        case "1": await send(sock, jid, FAQ.location); break;
-        case "2": await send(sock, jid, FAQ.payment); break;
-        case "3": await send(sock, jid, FAQ.cancel); break;
-        case "4": await send(sock, jid, FAQ.visa); break;
-        default: await send(sock, jid, menus.moreInfoMenu());
+    if (menus.moreInfoMenu) {
+        const faqKeys = Object.keys(FAQ);
+        const idx = parseInt(text.trim()) - 1;
+        if (idx >= 0 && idx < faqKeys.length) {
+            await send(sock, jid, FAQ[faqKeys[idx]]);
+        } else {
+            await send(sock, jid, menus.moreInfoMenu());
+        }
+    } else {
+        await send(sock, jid, menus.mainMenu());
     }
 }
 
@@ -133,8 +167,35 @@ async function handleIncomingMessage(sock, msg) {
     saveUser(phone);
     console.log(`📨  [${phone}] "${text}"`);
 
-    // Only reply with "hi ;)" as requested
-    await send(sock, jid, "hi ;)");
+    // Try global shortcuts first
+    const handled = await handleGlobalShortcut(sock, jid, phone, text);
+    if (handled) return;
+
+    // Route based on current state
+    const session = getSession(phone);
+    switch (session.state) {
+        case "main_menu":
+            await handleMainMenu(sock, jid, phone, text);
+            break;
+        case "tours":
+            await handleTours(sock, jid, phone, text);
+            break;
+        case "awaiting_order":
+            await handleAwaitingOrder(sock, jid, phone, text);
+            break;
+        case "more_info":
+            await handleMoreInfo(sock, jid, phone, text);
+            break;
+        case "tour_detail":
+            // from tour detail, any text goes back to shortcuts or main menu
+            setState(phone, "main_menu");
+            await handleMainMenu(sock, jid, phone, text);
+            break;
+        default:
+            // New user or idle — show greeting
+            setState(phone, "main_menu");
+            await send(sock, jid, menus.greeting());
+    }
 }
 
 module.exports = { handleIncomingMessage };
