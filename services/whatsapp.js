@@ -1,6 +1,7 @@
 /**
- * WhatsApp Connection Service (atexovi-baileys)
- * Upgraded from @whiskeysockets/baileys to atexovi-baileys for interactive button support.
+ * WhatsApp Connection Service (Baileys)
+ * Manages the WebSocket lifecycle, QR code generation, session persistence,
+ * and passes incoming messages to the message handler.
  */
 
 const {
@@ -9,7 +10,7 @@ const {
     DisconnectReason,
     fetchLatestBaileysVersion,
     Browsers
-} = require("atexovi-baileys");
+} = require("@whiskeysockets/baileys");
 const fs = require("fs");
 const path = require("path");
 const qrcode_terminal = require("qrcode-terminal");
@@ -22,9 +23,12 @@ let sockStatus = "disconnected";
 let activeSocket = null;
 let currentQRData = null;
 
-async function startBot() {
-    console.log("🤖 Starting Basma Bot (atexovi-baileys)...");
+let pollStore = {}; // Simple custom store for poll messages
 
+async function startBot() {
+    console.log("🤖 Starting Baileys WhatsApp Bot...");
+
+    // Use OS temp dir if on Vercel (read-only FS workaround), otherwise local folder
     const isVercel = process.env.VERCEL === "1" || !!process.env.VERCEL;
     const SESSION_DIR = isVercel
         ? path.join(require("os").tmpdir(), "basma-session")
@@ -34,9 +38,19 @@ async function startBot() {
         fs.mkdirSync(SESSION_DIR, { recursive: true });
     }
 
+    const POLL_STORE_FILE = path.join(SESSION_DIR, "polls.json");
+    try {
+        if (fs.existsSync(POLL_STORE_FILE)) {
+            pollStore = JSON.parse(fs.readFileSync(POLL_STORE_FILE, "utf-8"));
+        }
+    } catch (e) {
+        console.error("Failed to load poll store", e);
+    }
+    const savePollStore = () => fs.writeFileSync(POLL_STORE_FILE, JSON.stringify(pollStore, null, 2));
+
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
     const { version, isLatest } = await fetchLatestBaileysVersion();
-    console.log(`📦 atexovi-baileys version: ${version.join(".")} (Latest: ${isLatest})`);
+    console.log(`📦 Baileys version: ${version.join(".")} (Latest: ${isLatest})`);
 
     const sock = makeWASocket({
         version,
@@ -50,6 +64,7 @@ async function startBot() {
 
     activeSocket = sock;
 
+    // Listen for connection updates (QR code, connection success/failure)
     sock.ev.on("connection.update", (update) => {
         const { connection, lastDisconnect, qr } = update;
 
@@ -64,32 +79,54 @@ async function startBot() {
         if (connection === "close") {
             const reason = lastDisconnect?.error?.output?.statusCode;
             const shouldReconnect = reason !== DisconnectReason.loggedOut;
-            console.log(`\n🔄 Connection closed (code: ${reason})`);
+
+            console.log(`\n🔄 Connection closed — reconnecting... (code: ${reason})`);
+
             if (shouldReconnect) {
                 setTimeout(startBot, 3000);
             } else {
-                console.log("❌ Logged out. Clear sessions/ folder to re-scan.");
+                console.log("❌ Logged out from WhatsApp. Clear sessions/ folder to re-scan.");
                 fs.rmSync(SESSION_DIR, { recursive: true, force: true });
                 process.exit(0);
             }
         } else if (connection === "open") {
             sockStatus = "connected";
             currentQRData = null;
-            console.log("\n✅ Basma Bot is online and ready!");
+            console.log("\n✅ Basma Travel Bot is online and ready!");
             console.log(`📱 Number connected: ${sock.user.id.split(":")[0]}\n`);
         }
     });
 
+    // Save auth credentials automatically
     sock.ev.on("creds.update", saveCreds);
 
+    // Listen for incoming messages
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
         if (type !== "notify") return;
 
         for (const msg of messages) {
-            if (!msg.message || msg.key.fromMe || msg.key.remoteJid === "status@broadcast") continue;
+            // Save outgoing polls to our custom store
+            if (msg.key.fromMe) {
+                if (msg.message) {
+                    const isPoll = ["pollCreationMessage", "pollCreationMessageV2", "pollCreationMessageV3"].some(k => msg.message[k]);
+                    if (isPoll) {
+                        pollStore[msg.key.id] = msg;
+                        savePollStore();
+                    }
+                }
+                continue; // Still ignore fromMe messages for general handling
+            }
+
+            // Ignore system broadcasts
+            if (!msg.message || msg.key.remoteJid === "status@broadcast") continue;
 
             try {
-                await handleIncomingMessage(sock, msg);
+                if (msg.message.pollUpdateMessage) {
+                    const mappedMsg = await handlePollUpdate(sock, msg);
+                    if (mappedMsg) await handleIncomingMessage(sock, mappedMsg);
+                } else {
+                    await handleIncomingMessage(sock, msg);
+                }
             } catch (err) {
                 console.error("❌ Message handling error:", err);
             }
@@ -99,7 +136,45 @@ async function startBot() {
     return sock;
 }
 
-function getSocket() { return activeSocket; }
-function getSockStatus() { return sockStatus; }
+// Intercepts and decrypts poll options, changing it back to a standard text message for handlers
+async function handlePollUpdate(sock, pollUpdateMsg) {
+    const { getAggregateVotesInPollMessage } = require("@whiskeysockets/baileys");
+
+    const pollCreationMsgKey = pollUpdateMsg.message.pollUpdateMessage.pollCreationMessageKey;
+    const originalMsg = pollStore[pollCreationMsgKey.id];
+
+    if (!originalMsg) {
+        console.log("❌ Original poll message not found in custom store.");
+        return null;
+    }
+
+    const votes = getAggregateVotesInPollMessage({
+        message: originalMsg.message,
+        pollUpdates: [pollUpdateMsg]
+    });
+
+    const selectedOptions = votes.filter(v => v.voters.length > 0);
+    if (selectedOptions.length > 0) {
+        // Grab the last voted option for single-select simulation
+        const selectedName = selectedOptions[selectedOptions.length - 1].name;
+        console.log(`🗳️ Poll vote extracted: ${selectedName}`);
+
+        return {
+            key: pollUpdateMsg.key,
+            message: {
+                conversation: selectedName
+            }
+        };
+    }
+    return null;
+}
+
+function getSocket() {
+    return activeSocket;
+}
+
+function getSockStatus() {
+    return sockStatus;
+}
 
 module.exports = { startBot, getSocket, getSockStatus, getQRData: () => currentQRData };
