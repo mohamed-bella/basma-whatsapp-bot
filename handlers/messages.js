@@ -34,6 +34,18 @@ async function send(sock, jid, text) {
 async function handleGlobalShortcut(sock, jid, phone, text) {
     const lower = text.toLowerCase();
 
+    if (lower === "hi") {
+        setState(phone, "main_menu");
+        await sock.sendMessage(jid, {
+            poll: {
+                name: "Example Poll Message",
+                values: ["Option 1", "Option 2", "Option 3"],
+                selectableCount: 1
+            }
+        });
+        return true;
+    }
+
     if (lower === "0" || matchesKeyword(text, KEYWORDS.menu)) {
         setState(phone, "main_menu");
         await send(sock, jid, menus.mainMenu());
