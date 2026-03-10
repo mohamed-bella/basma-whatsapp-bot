@@ -3,14 +3,14 @@
  */
 
 const express = require("express");
-const rateLimit = require("express-rate-limit");
 const config = require("../config");
 const { getSocket, getSockStatus, getQRData } = require("../services/whatsapp");
 const { saveOrder, getOrder, getAllOrders, getAllUsers, updateOrderStatus } = require("../services/storage");
 
 const router = express.Router();
 
-router.use(rateLimit({ windowMs: config.rateLimit.windowMs, max: config.rateLimit.max, message: { success: false, error: "Too many requests." } }));
+// Rate limiting disabled by request
+// router.use(rateLimit({ windowMs: config.rateLimit.windowMs, max: config.rateLimit.max, message: { success: false, error: "Too many requests." } }));
 
 function requireApiKey(req, res, next) {
     const key = req.headers["x-api-key"] || req.query.api_key;
