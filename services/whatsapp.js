@@ -43,7 +43,7 @@ async function startBot() {
     const sock = makeWASocket({
         version,
         auth: state,
-        printQRInTerminal: true,
+        printQRInTerminal: false,
         browser: Browsers.macOS("Desktop"),
         generateHighQualityLinkPreview: true,
         syncFullHistory: false,
