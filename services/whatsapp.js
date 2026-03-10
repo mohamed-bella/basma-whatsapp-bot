@@ -9,10 +9,8 @@ const {
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
-    Browsers,
-    makeInMemoryStore
+    Browsers
 } = require("@whiskeysockets/baileys");
-const pino = require("pino");
 const fs = require("fs");
 const path = require("path");
 const qrcode_terminal = require("qrcode-terminal");
@@ -24,6 +22,8 @@ const { getSession, resetSession } = require("../services/session");
 let sockStatus = "disconnected";
 let activeSocket = null;
 let currentQRData = null;
+
+let pollStore = {}; // Simple custom store for poll messages
 
 async function startBot() {
     console.log("🤖 Starting Baileys WhatsApp Bot...");
@@ -38,11 +38,15 @@ async function startBot() {
         fs.mkdirSync(SESSION_DIR, { recursive: true });
     }
 
-    const store = makeInMemoryStore({ logger: pino().child({ level: "silent", stream: "store" }) });
-    store.readFromFile(path.join(SESSION_DIR, "baileys_store.json"));
-    setInterval(() => {
-        store.writeToFile(path.join(SESSION_DIR, "baileys_store.json"));
-    }, 10_000);
+    const POLL_STORE_FILE = path.join(SESSION_DIR, "polls.json");
+    try {
+        if (fs.existsSync(POLL_STORE_FILE)) {
+            pollStore = JSON.parse(fs.readFileSync(POLL_STORE_FILE, "utf-8"));
+        }
+    } catch (e) {
+        console.error("Failed to load poll store", e);
+    }
+    const savePollStore = () => fs.writeFileSync(POLL_STORE_FILE, JSON.stringify(pollStore, null, 2));
 
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
     const { version, isLatest } = await fetchLatestBaileysVersion();
@@ -55,17 +59,9 @@ async function startBot() {
         browser: Browsers.macOS("Desktop"),
         generateHighQualityLinkPreview: true,
         syncFullHistory: false,
-        markOnlineOnConnect: true,
-        getMessage: async (key) => {
-            if (store) {
-                const msg = await store.loadMessage(key.remoteJid, key.id);
-                return msg?.message || undefined;
-            }
-            return { conversation: "" };
-        }
+        markOnlineOnConnect: true
     });
 
-    store.bind(sock.ev);
     activeSocket = sock;
 
     // Listen for connection updates (QR code, connection success/failure)
@@ -109,12 +105,24 @@ async function startBot() {
         if (type !== "notify") return;
 
         for (const msg of messages) {
-            // Ignore outgoing messages or system broadcasts
-            if (!msg.message || msg.key.fromMe || msg.key.remoteJid === "status@broadcast") continue;
+            // Save outgoing polls to our custom store
+            if (msg.key.fromMe) {
+                if (msg.message) {
+                    const isPoll = ["pollCreationMessage", "pollCreationMessageV2", "pollCreationMessageV3"].some(k => msg.message[k]);
+                    if (isPoll) {
+                        pollStore[msg.key.id] = msg;
+                        savePollStore();
+                    }
+                }
+                continue; // Still ignore fromMe messages for general handling
+            }
+
+            // Ignore system broadcasts
+            if (!msg.message || msg.key.remoteJid === "status@broadcast") continue;
 
             try {
                 if (msg.message.pollUpdateMessage) {
-                    const mappedMsg = await handlePollUpdate(sock, store, msg);
+                    const mappedMsg = await handlePollUpdate(sock, msg);
                     if (mappedMsg) await handleIncomingMessage(sock, mappedMsg);
                 } else {
                     await handleIncomingMessage(sock, msg);
@@ -129,14 +137,14 @@ async function startBot() {
 }
 
 // Intercepts and decrypts poll options, changing it back to a standard text message for handlers
-async function handlePollUpdate(sock, store, pollUpdateMsg) {
+async function handlePollUpdate(sock, pollUpdateMsg) {
     const { getAggregateVotesInPollMessage } = require("@whiskeysockets/baileys");
 
     const pollCreationMsgKey = pollUpdateMsg.message.pollUpdateMessage.pollCreationMessageKey;
-    const originalMsg = await store.loadMessage(pollCreationMsgKey.remoteJid, pollCreationMsgKey.id);
+    const originalMsg = pollStore[pollCreationMsgKey.id];
 
     if (!originalMsg) {
-        console.log("❌ Original poll message not found in store.");
+        console.log("❌ Original poll message not found in custom store.");
         return null;
     }
 
