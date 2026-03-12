@@ -148,11 +148,12 @@ router.get("/users", requireApiKey, (req, res) => {
 
 // ── IPTV Contact Form (From WordPress) ──────────────────────────────────────
 router.post("/iptv-contact", async (req, res) => {
-    const { name, email, phone } = req.body;
+    const { name, email, phone, site, page_url, user_ip, user_agent } = req.body;
     const sock = getSocket();
     const status = getSockStatus();
 
     if (!sock || status !== "connected") {
+        console.log(`📡 [IPTV] Attempted contact but bot is ${status}`);
         return res.status(503).json({ 
             success: false, 
             error: "WhatsApp not connected.",
@@ -182,11 +183,46 @@ router.post("/iptv-contact", async (req, res) => {
         if (adminPhone) {
             const cleanAdmin = adminPhone.replace(/\D/g, "");
             const adminJid = `${cleanAdmin}@s.whatsapp.net`;
-            const adminMsg = `🚀 *Nouveau Contact IPTV!*\n\n👤 *Nom:* ${name}\n📧 *Email:* ${email || 'Non fourni'}\n📱 *WhatsApp:* ${phone}\n\nL'utilisateur attend votre message.`;
+
+            // -- Message 1: Full Details --
+            const adminMsg = `🚀 *Nouveau Contact IPTV!*\n\n` +
+                             `👤 *Nom:* ${name}\n` +
+                             `📧 *Email:* ${email || 'Non fourni'}\n` +
+                             `📱 *WhatsApp:* ${phone}\n` +
+                             `🌐 *Site:* ${site || 'Inconnu'}\n` +
+                             `🔗 *Page:* ${page_url || 'Inconnue'}\n` +
+                             `💻 *IP:* ${user_ip || 'Inconnue'}\n` +
+                             `🤖 *Appareil:* ${user_agent || 'Inconnu'}\n\n` +
+                             `_L'utilisateur attend votre message._`;
+            
+            console.log(`📨 Sending full details to admin ${cleanAdmin}...`);
             await sock.sendMessage(adminJid, { text: adminMsg });
+
+            // -- Message 2: Plain Email (for easy copying) --
+            if (email) {
+                await sock.sendMessage(adminJid, { text: email });
+            }
+
+            // -- Message 3: WhatsApp Contact Card --
+            const vcard = 'BEGIN:VCARD\n' +
+                          'VERSION:3.0\n' +
+                          `FN:${name}\n` +
+                          `TEL;type=CELL;type=VOICE;waid=${cleanPhone}:+${cleanPhone}\n` +
+                          'END:VCARD';
+
+            await sock.sendMessage(adminJid, {
+                contacts: {
+                    displayName: name,
+                    contacts: [{ vcard }]
+                }
+            });
+
+            console.log(`✅ All admin notifications sent.`);
+        } else {
+            console.log("⚠️ No ADMIN_NUMBER configured in .env");
         }
 
-        console.log(`📡  IPTV Contact processed for ${name} (${cleanPhone})`);
+        console.log(`📡 IPTV Contact processed for ${name} (${cleanPhone})`);
         res.json({ success: true, message: "Contact request processed successfully." });
     } catch (err) {
         console.error("❌ IPTV Contact Error:", err.message);
