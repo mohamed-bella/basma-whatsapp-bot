@@ -77,7 +77,18 @@ PATCH /api/orders/:id/status
 GET /api/users
 ```
 
-### 7. Health Check (No Auth)
+### 7. IPTV Contact (From WordPress)
+```
+POST /api/iptv-contact
+```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | ✅ | User's full name |
+| `phone` | string | ✅ | User's WhatsApp number |
+| `email` | string | ❌ | User's email address |
+
+### 8. Health Check (No Auth)
 ```
 GET /api/health
 ```

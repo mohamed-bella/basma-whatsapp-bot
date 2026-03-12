@@ -243,7 +243,36 @@ GET /api/users
 
 ---
 
-### 7. Health Check (No Auth Required)
+### 7. IPTV Contact (From WordPress)
+Handle submissions from the IPTV Contact Form WordPress plugin. No authentication required for this specific endpoint.
+
+```
+POST /api/iptv-contact
+```
+
+**Body Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | ✅ | User's full name |
+| `phone` | string | ✅ | User's WhatsApp number |
+| `email` | string | ❌ | User's email address |
+
+**Example:**
+```javascript
+fetch("http://77.42.43.52:4000/api/iptv-contact", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+        name: "Mohamed Bella",
+        phone: "+212600000000",
+        email: "mohamed@example.com"
+    })
+});
+```
+
+---
+
+### 8. Health Check (No Auth Required)
 
 ```
 GET /api/health

@@ -35,33 +35,37 @@ async function handleGlobalShortcut(sock, jid, phone, text) {
     const lower = text.toLowerCase();
 
     if (lower === "hi") {
-        setState(phone, "main_menu");
-        await sock.sendMessage(jid, {
-            poll: {
-                name: "👋 Welcome! How can we help you today?",
-                values: ["Book a New Tour", "Check Order Status", "Speak to Agent"],
-                selectableCount: 1
-            }
-        });
+        setState(phone, "hi_menu");
+        await send(sock, jid,
+            `👋 *Welcome! How can we help you today?*\n\n` +
+            `*1️⃣* Book a New Tour\n` +
+            `*2️⃣* Check Order Status\n` +
+            `*3️⃣* Speak to Agent\n\n` +
+            `_Reply with a number (1-3)_`
+        );
         return true;
     }
 
-    // Handle Poll Responses
-    if (text === "Book a New Tour") {
-        setState(phone, "tours");
-        await send(sock, jid, menus.toursList ? menus.toursList() : "🌍 Here are our available tours:\n1️⃣ Sahara Desert Tour\n2️⃣ Atlas Mountains\n\nReply with the number to learn more.");
-        return true;
-    }
-
-    if (text === "Check Order Status") {
-        setState(phone, "awaiting_order");
-        await send(sock, jid, menus.orderPrompt ? menus.orderPrompt() : "📦 Please enter your *Order Number* to check the status:");
-        return true;
-    }
-
-    if (text === "Speak to Agent") {
-        setState(phone, "agent");
-        await send(sock, jid, "🧑‍💻 Connecting you to an agent... Please wait a moment.");
+    // Handle hi_menu numbered replies
+    const session = getSession(phone);
+    if (session.state === "hi_menu") {
+        if (text.trim() === "1") {
+            setState(phone, "tours");
+            await send(sock, jid, menus.toursList ? menus.toursList() : "🌍 Here are our available tours:\n1️⃣ Sahara Desert Tour\n2️⃣ Atlas Mountains\n\nReply with the number to learn more.");
+            return true;
+        }
+        if (text.trim() === "2") {
+            setState(phone, "awaiting_order");
+            await send(sock, jid, menus.orderPrompt ? menus.orderPrompt() : "📦 Please enter your *Order Number* to check the status:");
+            return true;
+        }
+        if (text.trim() === "3") {
+            setState(phone, "agent");
+            await send(sock, jid, "🧑‍💻 Connecting you to a live agent... Please wait a moment.\n\nType *0* to go back to the main menu.");
+            return true;
+        }
+        // Invalid input — prompt again
+        await send(sock, jid, "⚠️ Please reply with *1*, *2*, or *3* to choose an option.");
         return true;
     }
 

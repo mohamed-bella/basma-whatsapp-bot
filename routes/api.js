@@ -146,4 +146,45 @@ router.get("/users", requireApiKey, (req, res) => {
     res.json({ success: true, count: getAllUsers().length, users: getAllUsers() });
 });
 
+// ── IPTV Contact Form (From WordPress) ──────────────────────────────────────
+router.post("/iptv-contact", async (req, res) => {
+    const { name, email, phone } = req.body;
+    const sock = getSocket();
+
+    if (!sock) {
+        return res.status(503).json({ success: false, error: "WhatsApp socket not connected." });
+    }
+
+    if (!name || !phone) {
+        return res.status(400).json({ success: false, error: "Name and phone are required." });
+    }
+
+    try {
+        const cleanPhone = phone.replace(/\D/g, "");
+        const userJid = `${cleanPhone}@s.whatsapp.net`;
+        
+        // Save user to storage
+        saveUser(cleanPhone, name);
+
+        // 1. Send Confirmation to the User
+        const userMsg = `✅ *Demande reçue!*\n\nBonjour *${name}* 👋\n\nMerci de nous avoir contactés pour votre abonnement IPTV. Notre équipe vous contactera sur ce numéro WhatsApp dès que possible.\n\n📺 *Service IPTV Premium*`;
+        await sock.sendMessage(userJid, { text: userMsg });
+
+        // 2. Notify the Admin (if configured in .env)
+        const adminPhone = process.env.ADMIN_NUMBER;
+        if (adminPhone) {
+            const cleanAdmin = adminPhone.replace(/\D/g, "");
+            const adminJid = `${cleanAdmin}@s.whatsapp.net`;
+            const adminMsg = `🚀 *Nouveau Contact IPTV!*\n\n👤 *Nom:* ${name}\n📧 *Email:* ${email || 'Non fourni'}\n📱 *WhatsApp:* ${phone}\n\nL'utilisateur attend votre message.`;
+            await sock.sendMessage(adminJid, { text: adminMsg });
+        }
+
+        console.log(`📡  IPTV Contact processed for ${name} (${cleanPhone})`);
+        res.json({ success: true, message: "Contact request processed successfully." });
+    } catch (err) {
+        console.error("❌ IPTV Contact Error:", err);
+        res.status(500).json({ success: false, error: "Failed to process contact request." });
+    }
+});
+
 module.exports = router;
