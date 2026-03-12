@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basma WhatsApp Bot — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .bg-glow div {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            animation: move 20s infinite alternate;
+        }
+
+        .glow-1 { background: var(--primary); top: -200px; right: -200px; }
+        .glow-2 { background: var(--secondary); bottom: -200px; left: -200px; animation-delay: -5s !important; }
+
+        @keyframes move {
+            from { transform: translate(0, 0) scale(1); }
+            to { transform: translate(100px, 100px) scale(1.2); }
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            width: 100%;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 48px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo span {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.05);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 14px;
+            font-weight: 600;
+            border: 1px solid var(--border);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #cbd5e1;
+        }
+
+        .status-dot.connected { background: var(--success); box-shadow: 0 0 12px var(--success); }
+        .status-dot.disconnected { background: var(--error); }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 32px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255,255,255,0.15);
+        }
+
+        .card h3 {
+            font-size: 18px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-dim);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn:hover { background: var(--primary-dark); transform: scale(1.02); }
+        .btn:active { transform: scale(0.98); }
+
+        .user-list {
+            margin-top: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 14px;
+        }
+
+        .user-info { flex: 1; }
+        .user-name { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+        .user-phone { font-size: 13px; color: var(--text-dim); }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        
+        #qr-container {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        #qr-img {
+            max-width: 250px;
+            margin: 0 auto 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 12px;
+        }
+
+        .update-banner {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 12px 20px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #4ade80;
+            font-weight: 600;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow">
+        <div class="glow-1"></div>
+        <div class="glow-2"></div>
+    </div>
+
+    <div class="container" id="app">
+        <header>
+            <div class="logo">🚀 <span>Basma Bot</span></div>
+            <div class="status-badge">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">Checking...</span>
+            </div>
+        </header>
+
+        <div class="update-banner">
+            ✨ <span>IPTV Contact Integration Live — Port 4000 active</span>
+        </div>
+
+        <div class="grid">
+            <!-- Bot Info Card -->
+            <div class="card">
+                <h3>🤖 Bot State</h3>
+                <div class="stat-value" id="bot-name">—</div>
+                <div class="stat-label">Active Bot Name</div>
+                
+                <div style="margin: 24px 0;">
+                    <div class="stat-value" style="font-size: 24px; color: var(--primary);" id="use-case">—</div>
+                    <div class="stat-label">Current Use Case</div>
+                </div>
+
+                <div id="qr-container">
+                    <p style="margin-bottom: 12px; color: var(--text-dim);">Scan QR to Link</p>
+                    <img id="qr-img" src="" alt="WhatsApp QR">
+                </div>
+
+                <button class="btn" onclick="fetchStatus()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+                    Refresh Status
+                </button>
+            </div>
+
+            <!-- Recent IPTV Contacts Card -->
+            <div class="card">
+                <h3>📡 Recent IPTV Contacts</h3>
+                <div id="user-count" class="stat-value">0</div>
+                <div class="stat-label">Total Contacts Registered</div>
+
+                <div class="user-list" id="users-container">
+                    <div class="empty-state">No contacts found yet.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/health');
+                const data = await res.json();
+                
+                document.getElementById('bot-name').textContent = data.bot;
+                document.getElementById('use-case').textContent = data.useCase;
+                
+                const dot = document.getElementById('status-dot');
+                const text = document.getElementById('status-text');
+                
+                dot.className = 'status-dot ' + data.status;
+                text.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+
+                if (data.status === 'disconnected') {
+                    checkQR();
+                } else {
+                    document.getElementById('qr-container').style.display = 'none';
+                }
+            } catch (e) {
+                console.error('Failed to fetch health', e);
+            }
+        }
+
+        async function checkQR() {
+            try {
+                const res = await fetch('/api/qr');
+                const data = await res.json();
+                if (data.qr) {
+                    document.getElementById('qr-container').style.display = 'block';
+                    document.getElementById('qr-img').src = data.qr;
+                }
+            } catch (e) { }
+        }
+
+        async function fetchUsers() {
+            try {
+                const res = await fetch('/api/users');
+                const data = await res.json();
+                
+                document.getElementById('user-count').textContent = data.count || 0;
+                
+                const container = document.getElementById('users-container');
+                if (!data.users || data.users.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No contacts found yet.</div>';
+                    return;
+                }
+
+                container.innerHTML = data.users.reverse().map(u => `
+                    <div class="user-item">
+                        <div class="user-avatar">${(u.name || 'U').charAt(0)}</div>
+                        <div class="user-info">
+                            <div class="user-name">${u.name || 'Anonymous'}</div>
+                            <div class="user-phone">${u.phone}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) { }
+        }
+
+        // Initial fetch
+        fetchStatus();
+        fetchUsers();
+
+        // Refresh every 10s
+        setInterval(() => {
+            fetchStatus();
+            fetchUsers();
+        }, 10000);
+    </script>
+</body>
+</html>

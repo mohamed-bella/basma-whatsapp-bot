@@ -6,7 +6,7 @@
 const express = require("express");
 const config = require("../config");
 const { getSocket, getSockStatus, getQRData } = require("../services/whatsapp");
-const { saveOrder, getOrder, getAllOrders, getAllUsers, updateOrderStatus } = require("../services/storage");
+const { saveOrder, getOrder, getAllOrders, getAllUsers, saveUser, updateOrderStatus } = require("../services/storage");
 const { sendStatusNotification } = require("../handlers/orders");
 
 const router = express.Router();
@@ -150,9 +150,14 @@ router.get("/users", requireApiKey, (req, res) => {
 router.post("/iptv-contact", async (req, res) => {
     const { name, email, phone } = req.body;
     const sock = getSocket();
+    const status = getSockStatus();
 
-    if (!sock) {
-        return res.status(503).json({ success: false, error: "WhatsApp socket not connected." });
+    if (!sock || status !== "connected") {
+        return res.status(503).json({ 
+            success: false, 
+            error: "WhatsApp not connected.",
+            status: status 
+        });
     }
 
     if (!name || !phone) {
@@ -161,6 +166,8 @@ router.post("/iptv-contact", async (req, res) => {
 
     try {
         const cleanPhone = phone.replace(/\D/g, "");
+        if (cleanPhone.length < 8) throw new Error("Invalid phone number format.");
+        
         const userJid = `${cleanPhone}@s.whatsapp.net`;
         
         // Save user to storage
@@ -182,8 +189,12 @@ router.post("/iptv-contact", async (req, res) => {
         console.log(`📡  IPTV Contact processed for ${name} (${cleanPhone})`);
         res.json({ success: true, message: "Contact request processed successfully." });
     } catch (err) {
-        console.error("❌ IPTV Contact Error:", err);
-        res.status(500).json({ success: false, error: "Failed to process contact request." });
+        console.error("❌ IPTV Contact Error:", err.message);
+        res.status(500).json({ 
+            success: false, 
+            error: "Failed to process contact request.",
+            details: err.message
+        });
     }
 });
 
