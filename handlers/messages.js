@@ -8,6 +8,8 @@ const { getOrder, saveUser } = require("../services/storage");
 const { getSession, setState } = require("../services/session");
 const { createStory } = require("../services/wordpress");
 
+const postDrafts = new Map();
+
 // ── Load from active use case ───────────────────────────────────────────
 const { keywords: KEYWORDS, faq: FAQ, menus } = config.useCase;
 
@@ -47,9 +49,9 @@ async function handleGlobalShortcut(sock, jid, phone, text) {
         return true;
     }
 
-    if (lower === "/post") {
-        setState(phone, "POST_TITLE", { post_data: {} });
-        await send(sock, jid, "📝 *New Article Creation*\n\nPlease enter the *Article Title*:\n\n_Type 'cancel' to abort._");
+    if (lower.startsWith("/post")) {
+        const args = text.trim().substring(5).trim();
+        await handlePostCommands(sock, jid, phone, args);
         return true;
     }
 
@@ -199,49 +201,64 @@ async function handleMoreInfo(sock, jid, phone, text) {
     }
 }
 
-async function handlePostFlow(sock, jid, phone, text) {
-    const session = getSession(phone);
-    const postData = session.context.post_data || {};
-
-    if (text.toLowerCase() === "cancel") {
-        setState(phone, "main_menu");
-        await send(sock, jid, "❌ Post creation cancelled.\n\nType *menu* to go back.");
-        return;
+async function handlePostCommands(sock, jid, phone, args) {
+    const argsLower = args.toLowerCase();
+    
+    if (argsLower === "start" || argsLower === "") {
+        postDrafts.set(phone, {});
+        await send(sock, jid, "📝 *New Article Creation Started*\n\nYour draft memory is saved.\nPlease set the title by sending:\n\n👉 `/post title [Your Title]`");
+        return true;
     }
 
-    switch (session.state) {
-        case "POST_TITLE":
-            postData.title = text;
-            setState(phone, "POST_CONTENT", { post_data: postData });
-            await send(sock, jid, "✅ Title saved!\n\nNow, please send the *.md code* for the post content (ACF story_content):");
+    if (argsLower === "cancel") {
+        postDrafts.delete(phone);
+        await send(sock, jid, "❌ Post draft cleared. Type *menu* to return.");
+        return true;
+    }
+
+    const draft = postDrafts.get(phone);
+    if (!draft) {
+        await send(sock, jid, "⚠️ No active post draft found. Send `/post start` to begin.");
+        return true;
+    }
+
+    const firstSpace = args.indexOf(" ");
+    const command = firstSpace > -1 ? args.substring(0, firstSpace).toLowerCase() : args.toLowerCase();
+    const payload = firstSpace > -1 ? args.substring(firstSpace + 1).trim() : "";
+
+    switch (command) {
+        case "title":
+            if (!payload) { await send(sock, jid, "⚠️ Please provide the title. Example:\n/post title My Awesome Trip"); return true; }
+            draft.title = payload;
+            await send(sock, jid, `✅ *Title saved!*\n\nNow, send the MD content:\n👉 \`/post content [Your .md code]\``);
             break;
 
-        case "POST_CONTENT":
-            postData.content = text;
-            setState(phone, "POST_SUBTITLE", { post_data: postData });
-            await send(sock, jid, "✅ Content saved!\n\nNow, please enter the *Subtitle*:");
+        case "content":
+            if (!payload) { await send(sock, jid, "⚠️ Please provide the content."); return true; }
+            draft.content = payload;
+            await send(sock, jid, `✅ *Content saved!*\n\nNow, send the subtitle:\n👉 \`/post subtitle [Your Subtitle]\``);
             break;
 
-        case "POST_SUBTITLE":
-            postData.subtitle = text;
-            setState(phone, "POST_READ_TIME", { post_data: postData });
-            await send(sock, jid, "✅ Subtitle saved!\n\nNow, enter the *Reading Time* (e.g., '5 Min Read'):");
+        case "subtitle":
+            if (!payload) { await send(sock, jid, "⚠️ Please provide the subtitle."); return true; }
+            draft.subtitle = payload;
+            await send(sock, jid, `✅ *Subtitle saved!*\n\nNow, send the reading time:\n👉 \`/post time [e.g. 5 Min Read]\``);
             break;
 
-        case "POST_READ_TIME":
-            postData.reading_time = text;
-            setState(phone, "POST_HERO_IMAGE", { post_data: postData });
-            await send(sock, jid, "✅ Reading Time saved!\n\nFinally, enter the *Media ID* for the Hero Image (e.g., '1606'):");
+        case "time":
+            if (!payload) { await send(sock, jid, "⚠️ Please provide the reading time."); return true; }
+            draft.reading_time = payload;
+            await send(sock, jid, `✅ *Reading Time saved!*\n\nNow, send the Hero Image Media ID:\n👉 \`/post media [e.g. 1606]\``);
             break;
-
-        case "POST_HERO_IMAGE":
-            postData.hero_image = parseInt(text.trim()) || 1606;
-            await send(sock, jid, `⏳ Creating article on WordPress with Media ID ${postData.hero_image}... Please wait.`);
             
-            const result = await createStory(postData);
+        case "media":
+            if (!payload) { await send(sock, jid, "⚠️ Please provide the Media ID."); return true; }
+            draft.hero_image = parseInt(payload) || 1606;
+            await send(sock, jid, `⏳ *Creating article on WordPress...*\n\n*Title:* ${draft.title || 'N/A'}\n*Media ID:* ${draft.hero_image}\n\nPlease wait.`);
             
+            const result = await createStory(draft);
             if (result.success) {
-                setState(phone, "main_menu");
+                postDrafts.delete(phone);
                 await send(sock, jid, 
                     `✅ *Success! Article Created.*\n\n` +
                     `*ID:* ${result.id}\n` +
@@ -249,10 +266,19 @@ async function handlePostFlow(sock, jid, phone, text) {
                     `Type *menu* to return.`
                 );
             } else {
-                await send(sock, jid, `❌ *Failed to create article.*\n\nError: ${result.error}\n\nType 'cancel' to stop or try entering the Media ID again:`);
+                await send(sock, jid, `❌ *Failed to create article.*\n\nError: ${result.error}\n\nCheck your details. You can update any field (e.g., \`/post media 123\`) or \`/post cancel\`.`);
             }
             break;
+            
+        case "status":
+            await send(sock, jid, `📊 *Draft Status:*\n\n*Title:* ${draft.title ? '✅' : '❌'}\n*Content:* ${draft.content ? '✅' : '❌'}\n*Subtitle:* ${draft.subtitle ? '✅' : '❌'}\n*Time:* ${draft.reading_time ? '✅' : '❌'}\n*Media:* ${draft.hero_image ? '✅' : '❌'}\n\nUpdate any missing field to continue.`);
+            break;
+
+        default:
+            await send(sock, jid, `⚠️ Unknown /post command: ${command}\n\nValid commands:\n/post start\n/post title [text]\n/post content [md]\n/post subtitle [text]\n/post time [text]\n/post media [id]\n/post status\n/post cancel`);
     }
+
+    return true;
 }
 
 // ── Entry ───────────────────────────────────────────────────────────────────
@@ -288,13 +314,6 @@ async function handleIncomingMessage(sock, msg) {
             // from tour detail, any text goes back to shortcuts or main menu
             setState(phone, "main_menu");
             await handleMainMenu(sock, jid, phone, text);
-            break;
-        case "POST_TITLE":
-        case "POST_CONTENT":
-        case "POST_SUBTITLE":
-        case "POST_READ_TIME":
-        case "POST_HERO_IMAGE":
-            await handlePostFlow(sock, jid, phone, text);
             break;
         default:
             // New user or idle — show greeting
