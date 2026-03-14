@@ -17,7 +17,7 @@ async function createStory(data) {
     const storyPayload = {
         title: data.title,
         status: 'publish', // Or 'draft'
-        content: '<p>This is the standard WordPress fallback content.</p>',
+        content: data.content, // Set standard content to provided content
         featured_media: data.hero_image, // Add to standard WP Featured Image
         acf: {
             subtitle: data.subtitle,
