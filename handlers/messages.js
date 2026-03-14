@@ -49,7 +49,7 @@ async function handleGlobalShortcut(sock, jid, phone, text) {
         return true;
     }
 
-    if (lower.startsWith("/post")) {
+    if (lower.startsWith(".post")) {
         const args = text.trim().substring(5).trim();
         await handlePostCommands(sock, jid, phone, args);
         return true;
@@ -204,28 +204,27 @@ async function handleMoreInfo(sock, jid, phone, text) {
 async function handlePostCommands(sock, jid, phone, args) {
     const argsLower = args.toLowerCase();
     
-    // Command: /post start or /post
+    // Command: .post start or .post
     if (argsLower === "start" || argsLower === "") {
-        const templateMessage = `📝 *New Article Creation*
+        const instructionMessage = `📝 *New Article Creation*
 
-Copy the template below, replace the bracketed text with your article details, and send it back to me.
-Do not change the labels (Title:, Subtitle:, etc.)
+Copy the template in the next message, replace the bracketed text with your article details, and send it back to me.
+Do not change the labels (Title:, Subtitle:, etc.)`;
 
------------ COPY BELOW -----------
-/post submit
+        const templateMessage = `.post submit
 Title: [Your Article Title]
 Subtitle: [Your Subtitle]
 Time: [e.g. 5 Min Read]
 Media: [e.g. 1606]
 Content: 
-[Paste your Markdown/HTML code here]
-----------------------------------
-`;
+[Paste your Markdown/HTML code here]`;
+
+        await send(sock, jid, instructionMessage);
         await send(sock, jid, templateMessage);
         return true;
     }
 
-    // Command: /post submit \n...
+    // Command: .post submit \n...
     if (argsLower.startsWith("submit")) {
         const rawContent = args.substring(6).trim(); // Remove "submit" keyword
         
@@ -240,7 +239,7 @@ Content:
         const contentMatch = contentSplit.length > 1 ? contentSplit[1].trim() : null;
 
         if (!titleMatch || !subtitleMatch || !timeMatch || !mediaMatch || !contentMatch) {
-            await send(sock, jid, `❌ *Missing fields detected!*\n\nPlease make sure you filled out all fields correctly including Title, Subtitle, Time, Media, and Content.\n\nType \`/post\` to see the template again.`);
+            await send(sock, jid, `❌ *Missing fields detected!*\n\nPlease make sure you filled out all fields correctly including Title, Subtitle, Time, Media, and Content.\n\nType \`.post\` to see the template again.`);
             return true;
         }
 
@@ -273,7 +272,7 @@ Content:
         return true;
     }
 
-    await send(sock, jid, `⚠️ Unknown /post command.\n\nValid commands:\n/post start\n/post submit`);
+    await send(sock, jid, `⚠️ Unknown .post command.\n\nValid commands:\n.post start\n.post submit`);
     return true;
 }
 
