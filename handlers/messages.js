@@ -6,6 +6,7 @@
 const config = require("../config");
 const { getOrder, saveUser } = require("../services/storage");
 const { getSession, setState } = require("../services/session");
+const { createStory } = require("../services/wordpress");
 
 // ── Load from active use case ───────────────────────────────────────────
 const { keywords: KEYWORDS, faq: FAQ, menus } = config.useCase;
@@ -43,6 +44,12 @@ async function handleGlobalShortcut(sock, jid, phone, text) {
             `*3️⃣* Speak to Agent\n\n` +
             `_Reply with a number (1-3)_`
         );
+        return true;
+    }
+
+    if (lower === "/post") {
+        setState(phone, "POST_TITLE", { post_data: {} });
+        await send(sock, jid, "📝 *New Article Creation*\n\nPlease enter the *Article Title*:\n\n_Type 'cancel' to abort._");
         return true;
     }
 
@@ -192,6 +199,62 @@ async function handleMoreInfo(sock, jid, phone, text) {
     }
 }
 
+async function handlePostFlow(sock, jid, phone, text) {
+    const session = getSession(phone);
+    const postData = session.context.post_data || {};
+
+    if (text.toLowerCase() === "cancel") {
+        setState(phone, "main_menu");
+        await send(sock, jid, "❌ Post creation cancelled.\n\nType *menu* to go back.");
+        return;
+    }
+
+    switch (session.state) {
+        case "POST_TITLE":
+            postData.title = text;
+            setState(phone, "POST_CONTENT", { post_data: postData });
+            await send(sock, jid, "✅ Title saved!\n\nNow, please send the *.md code* for the post content (ACF story_content):");
+            break;
+
+        case "POST_CONTENT":
+            postData.content = text;
+            setState(phone, "POST_SUBTITLE", { post_data: postData });
+            await send(sock, jid, "✅ Content saved!\n\nNow, please enter the *Subtitle*:");
+            break;
+
+        case "POST_SUBTITLE":
+            postData.subtitle = text;
+            setState(phone, "POST_READ_TIME", { post_data: postData });
+            await send(sock, jid, "✅ Subtitle saved!\n\nNow, enter the *Reading Time* (e.g., '5 Min Read'):");
+            break;
+
+        case "POST_READ_TIME":
+            postData.reading_time = text;
+            setState(phone, "POST_HERO_IMAGE", { post_data: postData });
+            await send(sock, jid, "✅ Reading Time saved!\n\nFinally, enter the *Media ID* for the Hero Image (e.g., '1606'):");
+            break;
+
+        case "POST_HERO_IMAGE":
+            postData.hero_image = parseInt(text.trim()) || 1606;
+            await send(sock, jid, `⏳ Creating article on WordPress with Media ID ${postData.hero_image}... Please wait.`);
+            
+            const result = await createStory(postData);
+            
+            if (result.success) {
+                setState(phone, "main_menu");
+                await send(sock, jid, 
+                    `✅ *Success! Article Created.*\n\n` +
+                    `*ID:* ${result.id}\n` +
+                    `*URL:* ${result.link}\n\n` +
+                    `Type *menu* to return.`
+                );
+            } else {
+                await send(sock, jid, `❌ *Failed to create article.*\n\nError: ${result.error}\n\nType 'cancel' to stop or try entering the Media ID again:`);
+            }
+            break;
+    }
+}
+
 // ── Entry ───────────────────────────────────────────────────────────────────
 async function handleIncomingMessage(sock, msg) {
     const jid = msg.key.remoteJid;
@@ -225,6 +288,13 @@ async function handleIncomingMessage(sock, msg) {
             // from tour detail, any text goes back to shortcuts or main menu
             setState(phone, "main_menu");
             await handleMainMenu(sock, jid, phone, text);
+            break;
+        case "POST_TITLE":
+        case "POST_CONTENT":
+        case "POST_SUBTITLE":
+        case "POST_READ_TIME":
+        case "POST_HERO_IMAGE":
+            await handlePostFlow(sock, jid, phone, text);
             break;
         default:
             // New user or idle — show greeting
