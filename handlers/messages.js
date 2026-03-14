@@ -204,80 +204,76 @@ async function handleMoreInfo(sock, jid, phone, text) {
 async function handlePostCommands(sock, jid, phone, args) {
     const argsLower = args.toLowerCase();
     
+    // Command: /post start or /post
     if (argsLower === "start" || argsLower === "") {
-        postDrafts.set(phone, {});
-        await send(sock, jid, "📝 *New Article Creation Started*\n\nYour draft memory is saved.\nPlease set the title by sending:\n\n👉 `/post title [Your Title]`");
+        const templateMessage = `📝 *New Article Creation*
+
+Copy the template below, replace the bracketed text with your article details, and send it back to me.
+Do not change the labels (Title:, Subtitle:, etc.)
+
+----------- COPY BELOW -----------
+/post submit
+Title: [Your Article Title]
+Subtitle: [Your Subtitle]
+Time: [e.g. 5 Min Read]
+Media: [e.g. 1606]
+Content: 
+[Paste your Markdown/HTML code here]
+----------------------------------
+`;
+        await send(sock, jid, templateMessage);
         return true;
     }
 
-    if (argsLower === "cancel") {
-        postDrafts.delete(phone);
-        await send(sock, jid, "❌ Post draft cleared. Type *menu* to return.");
+    // Command: /post submit \n...
+    if (argsLower.startsWith("submit")) {
+        const rawContent = args.substring(6).trim(); // Remove "submit" keyword
+        
+        // Extract fields using Regex
+        const titleMatch = rawContent.match(/Title:\s*(.+)/i);
+        const subtitleMatch = rawContent.match(/Subtitle:\s*(.+)/i);
+        const timeMatch = rawContent.match(/Time:\s*(.+)/i);
+        const mediaMatch = rawContent.match(/Media:\s*(\d+)/i);
+        
+        // Content is everything after "Content:" line
+        const contentSplit = rawContent.split(/Content:\s*/i);
+        const contentMatch = contentSplit.length > 1 ? contentSplit[1].trim() : null;
+
+        if (!titleMatch || !subtitleMatch || !timeMatch || !mediaMatch || !contentMatch) {
+            await send(sock, jid, `❌ *Missing fields detected!*\n\nPlease make sure you filled out all fields correctly including Title, Subtitle, Time, Media, and Content.\n\nType \`/post\` to see the template again.`);
+            return true;
+        }
+
+        const draft = {
+            title: titleMatch[1].trim(),
+            subtitle: subtitleMatch[1].trim(),
+            reading_time: timeMatch[1].trim(),
+            hero_image: parseInt(mediaMatch[1].trim()),
+            content: contentMatch
+        };
+
+        if (draft.content.startsWith("[Paste") && draft.content.includes("here]")) {
+            await send(sock, jid, `❌ Please replace the "[Paste your Markdown/HTML code here]" text with your actual content.`);
+            return true;
+        }
+
+        await send(sock, jid, `⏳ *Creating article on WordPress...*\n\n*Title:* ${draft.title}\n*Media ID:* ${draft.hero_image}\n\nPlease wait.`);
+            
+        const result = await createStory(draft);
+        if (result.success) {
+            await send(sock, jid, 
+                `✅ *Success! Article Created.*\n\n` +
+                `*ID:* ${result.id}\n` +
+                `*URL:* ${result.link}\n\n` +
+                `Type *menu* to return.`
+            );
+        } else {
+            await send(sock, jid, `❌ *Failed to create article.*\n\nError: ${result.error}`);
+        }
         return true;
     }
 
-    const draft = postDrafts.get(phone);
-    if (!draft) {
-        await send(sock, jid, "⚠️ No active post draft found. Send `/post start` to begin.");
-        return true;
-    }
-
-    const firstSpace = args.indexOf(" ");
-    const command = firstSpace > -1 ? args.substring(0, firstSpace).toLowerCase() : args.toLowerCase();
-    const payload = firstSpace > -1 ? args.substring(firstSpace + 1).trim() : "";
-
-    switch (command) {
-        case "title":
-            if (!payload) { await send(sock, jid, "⚠️ Please provide the title. Example:\n/post title My Awesome Trip"); return true; }
-            draft.title = payload;
-            await send(sock, jid, `✅ *Title saved!*\n\nNow, send the MD content:\n👉 \`/post content [Your .md code]\``);
-            break;
-
-        case "content":
-            if (!payload) { await send(sock, jid, "⚠️ Please provide the content."); return true; }
-            draft.content = payload;
-            await send(sock, jid, `✅ *Content saved!*\n\nNow, send the subtitle:\n👉 \`/post subtitle [Your Subtitle]\``);
-            break;
-
-        case "subtitle":
-            if (!payload) { await send(sock, jid, "⚠️ Please provide the subtitle."); return true; }
-            draft.subtitle = payload;
-            await send(sock, jid, `✅ *Subtitle saved!*\n\nNow, send the reading time:\n👉 \`/post time [e.g. 5 Min Read]\``);
-            break;
-
-        case "time":
-            if (!payload) { await send(sock, jid, "⚠️ Please provide the reading time."); return true; }
-            draft.reading_time = payload;
-            await send(sock, jid, `✅ *Reading Time saved!*\n\nNow, send the Hero Image Media ID:\n👉 \`/post media [e.g. 1606]\``);
-            break;
-            
-        case "media":
-            if (!payload) { await send(sock, jid, "⚠️ Please provide the Media ID."); return true; }
-            draft.hero_image = parseInt(payload) || 1606;
-            await send(sock, jid, `⏳ *Creating article on WordPress...*\n\n*Title:* ${draft.title || 'N/A'}\n*Media ID:* ${draft.hero_image}\n\nPlease wait.`);
-            
-            const result = await createStory(draft);
-            if (result.success) {
-                postDrafts.delete(phone);
-                await send(sock, jid, 
-                    `✅ *Success! Article Created.*\n\n` +
-                    `*ID:* ${result.id}\n` +
-                    `*URL:* ${result.link}\n\n` +
-                    `Type *menu* to return.`
-                );
-            } else {
-                await send(sock, jid, `❌ *Failed to create article.*\n\nError: ${result.error}\n\nCheck your details. You can update any field (e.g., \`/post media 123\`) or \`/post cancel\`.`);
-            }
-            break;
-            
-        case "status":
-            await send(sock, jid, `📊 *Draft Status:*\n\n*Title:* ${draft.title ? '✅' : '❌'}\n*Content:* ${draft.content ? '✅' : '❌'}\n*Subtitle:* ${draft.subtitle ? '✅' : '❌'}\n*Time:* ${draft.reading_time ? '✅' : '❌'}\n*Media:* ${draft.hero_image ? '✅' : '❌'}\n\nUpdate any missing field to continue.`);
-            break;
-
-        default:
-            await send(sock, jid, `⚠️ Unknown /post command: ${command}\n\nValid commands:\n/post start\n/post title [text]\n/post content [md]\n/post subtitle [text]\n/post time [text]\n/post media [id]\n/post status\n/post cancel`);
-    }
-
+    await send(sock, jid, `⚠️ Unknown /post command.\n\nValid commands:\n/post start\n/post submit`);
     return true;
 }
 
